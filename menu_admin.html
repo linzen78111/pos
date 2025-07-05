@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>菜單管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', 'Inter', Arial, sans-serif; background: #f7f3ef; }
+    .container { max-width: 600px; margin: 40px auto; padding: 24px; background: #fff; border-radius: 14px; box-shadow: 0 2px 12px #3bb4c122; }
+    h2 { color: #3bb4c1; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    th, td { padding: 8px 4px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+    th { background: #e0f7fa; color: #22577a; }
+    tr:last-child td { border-bottom: none; }
+    input, select { font-size: 1em; padding: 4px 6px; border: 1px solid #b0dbe6; border-radius: 6px; }
+    input[type=checkbox] { width: 18px; height: 18px; }
+    .actions button { margin-right: 6px; padding: 4px 10px; border-radius: 6px; border: none; font-size: 1em; cursor: pointer; }
+    .actions .edit { background: #3bb4c1; color: #fff; }
+    .actions .delete { background: #b85c38; color: #fff; }
+    .actions .save { background: #7be0ad; color: #22577a; }
+    .actions .cancel { background: #e0f7fa; color: #b85c38; }
+    .add-form { margin-bottom: 24px; background: #fdf6ee; padding: 12px 10px; border-radius: 8px; }
+    .add-form input, .add-form select { margin-right: 8px; margin-bottom: 6px; }
+    .msg { margin: 12px 0; color: #b85c38; font-weight: bold; }
+    .hot-list {
+      background: #e0f7fa;
+      border-radius: 10px;
+      padding: 16px 12px 10px 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 6px #3bb4c122;
+    }
+    .hot-list-title {
+      color: #b85c38;
+      font-size: 1.15em;
+      font-weight: bold;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    .hot-list ul { list-style: none; padding: 0; margin: 0; }
+    .hot-list li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #b0dbe6; }
+    .hot-list li:last-child { border-bottom: none; }
+    .hot-list .hot-name { font-weight: bold; color: #22577a; }
+    .hot-list .hot-count { color: #b85c38; font-size: 1em; }
+    .recommend-setting {
+      margin-bottom: 18px;
+      background: #fdf6ee;
+      padding: 10px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .recommend-setting label { color: #b85c38; font-weight: bold; margin-right: 6px; }
+    .recommend-setting input { font-size: 1em; padding: 4px 8px; border: 1px solid #b0dbe6; border-radius: 6px; }
+    .recommend-setting button { padding: 4px 14px; border-radius: 6px; border: none; background: #3bb4c1; color: #fff; font-weight: bold; cursor: pointer; }
+    @media (max-width: 700px) { .container { max-width: 99vw; } }
+  </style>
+</head>
+<body>
+  <!-- 登入表單 -->
+  <div class="container" id="authContainer" style="display:none;max-width:400px;">
+    <h2>菜單管理登入</h2>
+    <input type="email" id="authEmail" placeholder="Email" style="width:100%;font-size:1.1em;padding:8px;margin-bottom:12px;" />
+    <input type="password" id="authPassword" placeholder="密碼" style="width:100%;font-size:1.1em;padding:8px;margin-bottom:18px;" />
+    <button id="authLoginBtn" style="width:100%;padding:12px 0;font-size:1.1em;background:#3bb4c1;color:#fff;border:none;border-radius:8px;cursor:pointer;">登入</button>
+    <div id="authMsg" style="color:#b85c38;margin-top:12px;"></div>
+  </div>
+
+  <!-- 菜單管理主內容 -->
+  <div class="container" id="mainContainer" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2>菜單管理</h2>
+      <button id="logoutBtn" style="background:#e0f7fa;color:#b85c38;padding:6px 18px;border-radius:8px;font-size:1em;font-weight:bold;border:none;cursor:pointer;">登出</button>
+    </div>
+    <div class="recommend-setting">
+      <label for="recommendCategory">推薦類別：</label>
+      <input type="text" id="recommendCategory" placeholder="如：本週推薦" />
+      <button onclick="saveRecommendCategory()">儲存</button>
+      <span id="recommendMsg" style="margin-left:8px;color:#22577a;"></span>
+    </div>
+    <div class="hot-list" id="hotList">
+      <div class="hot-list-title">熱門推薦（前10名）</div>
+      <div id="hotListContent">統計中...</div>
+    </div>
+    <div class="add-form">
+      <input type="text" id="addName" placeholder="名稱" required />
+      <input type="number" id="addPrice" placeholder="金額" min="0" required />
+      <input type="text" id="addImage" placeholder="圖片網址" />
+      <input type="text" id="addCategory" placeholder="分類" />
+      <input type="text" id="addNote" placeholder="備註/說明" />
+      <label><input type="checkbox" id="addEnabled" checked /> 啟用</label>
+      <button onclick="addMenuItem()">新增</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <table id="menuTable">
+      <thead>
+        <tr>
+          <th>名稱</th><th>金額</th><th>圖片</th><th>分類</th><th>備註</th><th>啟用</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // 登入相關元素
+    const authContainer = document.getElementById('authContainer');
+    const mainContainer = document.getElementById('mainContainer');
+    const authMsg = document.getElementById('authMsg');
+
+    // 登入按鈕事件
+    document.getElementById('authLoginBtn').onclick = async function() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      authMsg.innerText = '';
+      
+      if (!email || !password) {
+        authMsg.innerText = '請輸入 Email 和密碼';
+        return;
+      }
+      
+      try {
+        console.log('嘗試登入:', email);
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log('登入成功');
+              } catch (e) {
+          console.error('登入錯誤:', e);
+          let errorMsg = '登入失敗';
+          if (e.code === 'auth/user-not-found') {
+            errorMsg = '帳號不存在，請先建立帳號';
+          } else if (e.code === 'auth/wrong-password') {
+            errorMsg = '密碼錯誤';
+          } else if (e.code === 'auth/invalid-email') {
+            errorMsg = 'Email 格式錯誤';
+          } else if (e.code === 'auth/invalid-login-credentials') {
+            errorMsg = '帳號或密碼不正確，請檢查輸入';
+          } else if (e.code === 'auth/too-many-requests') {
+            errorMsg = '登入次數過多，請稍後再試';
+          } else {
+            errorMsg = '登入失敗：' + (e.message || '請檢查帳號密碼');
+          }
+          authMsg.innerText = errorMsg;
+        }
+    };
+
+    // 登出按鈕事件
+    document.getElementById('logoutBtn').onclick = function() {
+      signOut(auth);
+    };
+
+    // 監聽登入狀態
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // 已登入，顯示菜單管理內容
+        authContainer.style.display = 'none';
+        mainContainer.style.display = '';
+        loadMenu();
+        loadHotList();
+      } else {
+        // 未登入，顯示登入表單
+        mainContainer.style.display = 'none';
+        authContainer.style.display = '';
+      }
+    });
+
+    let menuData = [];
+    async function loadMenu() {
+      const snapshot = await getDocs(collection(db, "menu"));
+      menuData = [];
+      snapshot.forEach(docu => {
+        menuData.push({ ...docu.data(), id: docu.id });
+      });
+      renderMenu();
+    }
+
+    function renderMenu() {
+      const tbody = document.querySelector('#menuTable tbody');
+      tbody.innerHTML = '';
+      menuData.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        if (item._edit) {
+          tr.innerHTML = `
+            <td><input value="${item.name}" id="editName${idx}" style="max-width:100px;width:100%;" /></td>
+            <td><input type="number" value="${item.price}" id="editPrice${idx}" min="0" style="max-width:60px;width:100%;" /></td>
+            <td><input value="${item.image || ''}" id="editImage${idx}" style="max-width:160px;width:100%;" /></td>
+            <td><input value="${item.category || ''}" id="editCategory${idx}" style="max-width:80px;width:100%;" /></td>
+            <td><input value="${item.note || ''}" id="editNote${idx}" style="max-width:180px;width:100%;" /></td>
+            <td><input type="checkbox" id="editEnabled${idx}" ${item.enabled ? 'checked' : ''} /></td>
+            <td class="actions">
+              <button class="save" onclick="saveEdit(${idx})">儲存</button>
+              <button class="cancel" onclick="cancelEdit(${idx})">取消</button>
+            </td>
+          `;
+        } else {
+          tr.innerHTML = `
+            <td>${item.name}</td>
+            <td>$${item.price}</td>
+            <td>${item.image ? `<img src="${item.image}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;">` : ''}</td>
+            <td>${item.category || ''}</td>
+            <td>${item.note || ''}</td>
+            <td><input type="checkbox" disabled ${item.enabled ? 'checked' : ''} /></td>
+            <td class="actions">
+              <button class="edit" onclick="editMenuItem(${idx})">編輯</button>
+              <button class="delete" onclick="deleteMenuItem('${item.id}')">刪除</button>
+            </td>
+          `;
+        }
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.addMenuItem = async function() {
+      const name = document.getElementById('addName').value.trim();
+      const price = parseInt(document.getElementById('addPrice').value || '0', 10);
+      const image = document.getElementById('addImage').value.trim();
+      const category = document.getElementById('addCategory').value.trim();
+      const note = document.getElementById('addNote').value.trim();
+      const enabled = document.getElementById('addEnabled').checked;
+      if (!name) { showMsg('請輸入名稱'); return; }
+      await setDoc(doc(db, "menu", name), { name, price, image, category, note, enabled });
+      showMsg('新增成功！');
+      clearAddForm();
+      loadMenu();
+    }
+    function clearAddForm() {
+      document.getElementById('addName').value = '';
+      document.getElementById('addPrice').value = '';
+      document.getElementById('addImage').value = '';
+      document.getElementById('addCategory').value = '';
+      document.getElementById('addNote').value = '';
+      document.getElementById('addEnabled').checked = true;
+    }
+    window.editMenuItem = function(idx) {
+      menuData[idx]._edit = true;
+      renderMenu();
+    }
+    window.cancelEdit = function(idx) {
+      menuData[idx]._edit = false;
+      renderMenu();
+    }
+    window.saveEdit = async function(idx) {
+      const item = menuData[idx];
+      const name = document.getElementById('editName'+idx).value.trim();
+      const price = parseInt(document.getElementById('editPrice'+idx).value || '0', 10);
+      const image = document.getElementById('editImage'+idx).value.trim();
+      const category = document.getElementById('editCategory'+idx).value.trim();
+      const note = document.getElementById('editNote'+idx).value.trim();
+      const enabled = document.getElementById('editEnabled'+idx).checked;
+      if (!name) { showMsg('請輸入名稱'); return; }
+      await setDoc(doc(db, "menu", name), { name, price, image, category, note, enabled });
+      menuData[idx]._edit = false;
+      showMsg('儲存成功！');
+      loadMenu();
+    }
+    window.deleteMenuItem = async function(id) {
+      if (!confirm('確定要刪除這個品項嗎？')) return;
+      await deleteDoc(doc(db, "menu", id));
+      showMsg('刪除成功！');
+      loadMenu();
+    }
+    function showMsg(msg) {
+      document.getElementById('msg').innerText = msg;
+      setTimeout(() => { document.getElementById('msg').innerText = ''; }, 1800);
+    }
+
+    async function loadHotList() {
+      const hotDiv = document.getElementById('hotListContent');
+      hotDiv.innerText = '統計中...';
+      try {
+        const ordersSnap = await getDocs(collection(db, "orders"));
+        const countMap = {};
+        ordersSnap.forEach(docu => {
+          const order = docu.data();
+          if (Array.isArray(order.items)) {
+            order.items.forEach(item => {
+              if (!item.name) return;
+              countMap[item.name] = (countMap[item.name] || 0) + (item.quantity || 1);
+            });
+          }
+        });
+        // 排序取前10
+        const hotArr = Object.entries(countMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        if (hotArr.length === 0) {
+          hotDiv.innerHTML = '<span style="color:#888">暫無訂單資料</span>';
+          return;
+        }
+        let html = '<ul>';
+        hotArr.forEach(([name, count], idx) => {
+          html += `<li><span class="hot-name">${idx+1}. ${name}</span><span class="hot-count">${count} 次</span></li>`;
+        });
+        html += '</ul>';
+        hotDiv.innerHTML = html;
+      } catch (e) {
+        hotDiv.innerHTML = '<span style="color:red">讀取失敗</span>';
+      }
+    }
+
+    // 推薦類別設定
+    function getRecommendCategory() {
+      return localStorage.getItem('recommend_category') || '';
+    }
+    function setRecommendCategory(val) {
+      localStorage.setItem('recommend_category', val);
+    }
+    window.saveRecommendCategory = function() {
+      const val = document.getElementById('recommendCategory').value.trim();
+      setRecommendCategory(val);
+      document.getElementById('recommendMsg').innerText = '已儲存';
+      setTimeout(()=>{document.getElementById('recommendMsg').innerText='';}, 1200);
+    }
+    // 初始化推薦類別欄位
+    document.getElementById('recommendCategory').value = getRecommendCategory();
+  </script>
+</body>
+</html> 

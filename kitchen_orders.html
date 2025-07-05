@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>廚房接單看板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', 'Inter', Arial, sans-serif; background: #f7f3ef; }
+    .container { max-width: 700px; margin: 0 auto; padding: 18px; }
+    h2 { color: #b85c38; margin-bottom: 18px; }
+    .order-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #3bb4c122; margin-bottom: 18px; padding: 18px 16px; position: relative; }
+    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .order-id { color: #3bb4c1; font-weight: bold; font-size: 1.1em; }
+    .order-type { color: #fff; background: #3bb4c1; border-radius: 6px; padding: 2px 10px; font-size: 0.98em; margin-left: 8px; }
+    .order-type.takeout { background: #b85c38; }
+    .order-table { color: #b85c38; font-weight: bold; font-size: 1.1em; }
+    .order-items { margin: 10px 0 0 0; }
+    .order-items th, .order-items td { padding: 4px 8px; }
+    .order-items th { color: #22577a; font-size: 1em; }
+    .order-items td { color: #3e2f28; font-size: 1em; }
+    .order-status { position: absolute; top: 16px; right: 16px; color: #fff; background: #7be0ad; border-radius: 6px; padding: 2px 10px; font-size: 0.98em; }
+    .order-status.done { background: #b0dbe6; }
+    .print-btn { background: #3bb4c1; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .print-btn:active { background: #b85c38; }
+    @media (max-width: 700px) { .container { max-width: 99vw; } }
+    /* 列印樣式 */
+    @media print {
+      body, html { background: #fff !important; }
+      .container, .order-card, .print-btn, .status-btns, #ordersList, h2, div[style*='color:#888'] { display: none !important; }
+      #printArea { display: block !important; max-width: 76mm !important; width: 100% !important; font-size: 14px !important; margin: 0 auto !important; padding: 0 !important; }
+      #printArea * { color: #000 !important; background: #fff !important; box-shadow: none !important; border: none !important; }
+      #printArea h2 { font-size: 1.15em !important; font-weight: bold !important; margin: 0 0 8px 0 !important; text-align: center !important; }
+      #printArea table { width: 100% !important; border-collapse: collapse !important; }
+      #printArea th, #printArea td { padding: 2px 0 !important; text-align: left !important; font-size: 1em !important; }
+      #printArea th { font-weight: bold !important; border-bottom: 1px solid #000 !important; }
+      #printArea td { font-weight: normal !important; }
+      #printArea .total-row { font-weight: bold !important; font-size: 1.1em !important; text-align: right !important; }
+      #printArea .order-id-row { font-size: 0.95em !important; color: #888 !important; text-align: right !important; }
+    }
+    #printArea { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container" id="authContainer" style="display:none;max-width:340px;">
+    <h2>廚房登入</h2>
+    <input type="email" id="authEmail" placeholder="Email" style="width:100%;font-size:1.1em;padding:8px;margin-bottom:12px;" />
+    <input type="password" id="authPassword" placeholder="密碼" style="width:100%;font-size:1.1em;padding:8px;margin-bottom:18px;" />
+    <button id="authLoginBtn" style="width:100%;padding:12px 0;font-size:1.1em;">登入</button>
+    <div id="authMsg" style="color:#b85c38;margin-top:12px;"></div>
+  </div>
+  <div class="container" id="mainContainer" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2>廚房接單看板</h2>
+      <div>
+        <button id="testSoundBtn" style="background:#4CAF50;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="testSound()">測試音效</button>
+        <button id="stopSoundBtn" style="background:#f44336;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="stopNotificationSound()">停止提醒音</button>
+        <button id="logoutBtn" style="background:#e0f7fa;color:#b85c38;padding:6px 18px;border-radius:8px;font-size:1em;font-weight:bold;border:none;">登出</button>
+      </div>
+    </div>
+    <div id="ordersList">載入中...</div>
+    <div style="color:#888;font-size:0.98em;margin-top:18px;">* 點擊「列印」可直接用手機/平板連接的出單機列印訂單</div>
+  </div>
+  <div id="printArea" style="display:none"></div>
+  
+  <!-- 音頻元素 -->
+  <audio id="notificationSound" preload="auto" loop>
+    <source src="SystemMessage_warning2.wav" type="audio/wav">
+    您的瀏覽器不支援音頻播放。
+  </audio>
+  
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 監聽訂單
+    function renderOrders(orders) {
+      const list = document.getElementById('ordersList');
+      if (!orders.length) {
+        list.innerHTML = '<div style="color:#888">目前沒有訂單</div>';
+        return;
+      }
+      list.innerHTML = '';
+      orders.forEach(order => {
+        // 計算總金額
+        let total = 0;
+        const itemsHtml = order.items.map(i => {
+          const price = i.price || 0;
+          const subtotal = price * i.quantity;
+          total += subtotal;
+          return `<tr><td>${i.name}</td><td style='text-align:right;'>${i.quantity}</td><td style='text-align:right;'>$${subtotal}</td></tr>`;
+        }).join('');
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        card.innerHTML = `
+          <div style="font-size:1.2em;font-weight:bold;color:#b85c38;text-align:center;margin-bottom:10px;">訂單確認</div>
+          <div style="margin-bottom:8px;"><b>店家：</b>G茶餐酒館</div>
+          <div><b>用餐方式：</b>${order.dineType || ''}</div>
+          <div><b>${order.dineType === '外帶' ? '取餐號碼' : '桌號'}：</b>${order.dineType === '外帶' ? (order.takeoutNumber || '001') : order.tableNumber}</div>
+          <div class='modal-list' style="margin:12px 0 18px 0;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr><th style="color:#3bb4c1;text-align:left;">品項</th><th style="color:#3bb4c1;text-align:right;">數量</th><th style="color:#3bb4c1;text-align:right;">小計</th></tr></thead>
+              <tbody>${itemsHtml}</tbody>
+            </table>
+          </div>
+          <div style="text-align:right;color:#b85c38;font-weight:bold;font-size:1.1em;">總金額：$${total}</div>
+          <button class="print-btn" onclick="printOrder('${order.id}')">列印</button>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // 訂單資料
+    let ordersData = [];
+    let knownOrderIds = new Set(); // 追蹤已知的訂單ID
+    let notificationAudio = null;
+    
+    let isFirstLoad = true; // 追蹤是否為首次載入
+    
+    function listenOrders() {
+      const q = query(collection(db, "orders"), orderBy("timestamp", "desc"));
+      onSnapshot(q, snapshot => {
+        const newOrdersData = [];
+        const currentOrderIds = new Set();
+        
+        snapshot.forEach(docu => {
+          const data = docu.data();
+          const orderId = docu.id;
+          newOrdersData.push({ ...data, id: orderId });
+          currentOrderIds.add(orderId);
+          
+          // 檢查是否為新訂單（首次載入時不播放音頻）
+          if (!isFirstLoad && !knownOrderIds.has(orderId)) {
+            console.log('發現新訂單:', orderId);
+            playNotificationSound();
+          }
+        });
+        
+        // 首次載入後設為false
+        if (isFirstLoad) {
+          isFirstLoad = false;
+        }
+        
+        // 更新已知訂單ID
+        knownOrderIds = currentOrderIds;
+        ordersData = newOrdersData;
+        renderOrders(ordersData);
+      });
+    }
+    
+    // 播放提醒音效
+    function playNotificationSound() {
+      if (!notificationAudio) {
+        notificationAudio = document.getElementById('notificationSound');
+      }
+      
+      if (notificationAudio) {
+        notificationAudio.currentTime = 0; // 重置播放位置
+        
+        // 先嘗試播放
+        const playPromise = notificationAudio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log('音頻播放成功');
+          }).catch(e => {
+            console.log('音頻播放失敗:', e);
+            // 如果自動播放失敗，顯示提示
+            showAudioPermissionAlert();
+          });
+        }
+      }
+    }
+    
+    // 顯示音頻權限提示
+    function showAudioPermissionAlert() {
+      if (!document.getElementById('audioAlert')) {
+        const alert = document.createElement('div');
+        alert.id = 'audioAlert';
+        alert.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #f44336;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          z-index: 9999;
+          font-weight: bold;
+          cursor: pointer;
+        `;
+        alert.innerHTML = '🔊 點擊此處啟用新訂單音頻提醒';
+        alert.onclick = function() {
+          enableAudioAndPlay();
+          alert.remove();
+        };
+        document.body.appendChild(alert);
+      }
+    }
+    
+    // 啟用音頻並播放
+    function enableAudioAndPlay() {
+      if (notificationAudio) {
+        notificationAudio.play().then(() => {
+          console.log('音頻權限已啟用');
+        }).catch(e => {
+          console.log('音頻權限啟用失敗:', e);
+        });
+      }
+    }
+    
+    // 停止提醒音效
+    function stopNotificationSound() {
+      if (notificationAudio) {
+        notificationAudio.pause();
+        notificationAudio.currentTime = 0;
+      }
+    }
+    // Firebase Auth 初始化
+    const auth = getAuth(app);
+    const authContainer = document.getElementById('authContainer');
+    const mainContainer = document.getElementById('mainContainer');
+    const authMsg = document.getElementById('authMsg');
+    document.getElementById('authLoginBtn').onclick = async function() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      authMsg.innerText = '';
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        authMsg.innerText = '登入失敗：' + (e.message || '請檢查帳號密碼');
+      }
+    };
+    document.getElementById('logoutBtn').onclick = function() {
+      signOut(auth);
+    };
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        authContainer.style.display = 'none';
+        mainContainer.style.display = '';
+        listenOrders();
+        
+        // 初始化音頻並顯示提示
+        setTimeout(() => {
+          initializeAudio();
+        }, 1000);
+      } else {
+        mainContainer.style.display = 'none';
+        authContainer.style.display = '';
+      }
+    });
+    
+    // 初始化音頻
+    function initializeAudio() {
+      if (!notificationAudio) {
+        notificationAudio = document.getElementById('notificationSound');
+      }
+      
+      // 顯示音頻權限提示
+      const audioTip = document.createElement('div');
+      audioTip.style.cssText = `
+        background: #2196F3;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+        font-size: 0.9em;
+      `;
+      audioTip.innerHTML = '💡 提醒：請點擊「測試音效」按鈕確保新訂單提醒音正常工作';
+      
+      const ordersList = document.getElementById('ordersList');
+      ordersList.parentNode.insertBefore(audioTip, ordersList);
+      
+      // 5秒後自動隱藏提示
+      setTimeout(() => {
+        audioTip.remove();
+      }, 8000);
+    }
+
+    // 測試音效功能
+    function testSound() {
+      if (!notificationAudio) {
+        notificationAudio = document.getElementById('notificationSound');
+      }
+      
+      if (notificationAudio) {
+        notificationAudio.currentTime = 0;
+        notificationAudio.play().then(() => {
+          console.log('測試音效播放成功');
+          // 3秒後自動停止測試音效
+          setTimeout(() => {
+            notificationAudio.pause();
+            notificationAudio.currentTime = 0;
+          }, 3000);
+        }).catch(e => {
+          console.log('測試音效播放失敗:', e);
+          alert('音效播放失敗，請檢查：\n1. 音頻檔案是否存在\n2. 瀏覽器是否允許音頻播放\n3. 音量是否開啟');
+        });
+      }
+    }
+    
+    // 全域函數
+    window.stopNotificationSound = stopNotificationSound;
+    window.testSound = testSound;
+    
+    // 列印功能
+    window.printOrder = function(orderId) {
+      // 停止音頻播放
+      stopNotificationSound();
+      
+      const order = ordersData.find(o => o.id === orderId);
+      if (!order) {
+        alert('找不到訂單資料');
+        return;
+      }
+
+      // 計算總金額
+      let total = 0;
+      const itemsHtml = order.items.map(i => {
+        const price = i.price || 0;
+        const subtotal = price * i.quantity;
+        total += subtotal;
+        return `<tr><td>${i.name}</td><td style='text-align:right;'>${i.quantity}</td><td style='text-align:right;'>$${subtotal}</td></tr>`;
+      }).join('');
+
+      // 產生列印內容
+      const printContent = `
+        <h2>G茶餐酒館</h2>
+        <div style="margin-bottom:8px;"><b>用餐方式：</b>${order.dineType || ''}</div>
+        <div style="margin-bottom:8px;"><b>${order.dineType === '外帶' ? '取餐號碼' : '桌號'}：</b>${order.dineType === '外帶' ? (order.takeoutNumber || '001') : order.tableNumber}</div>
+        <table style="width:100%;border-collapse:collapse;margin:8px 0;">
+          <thead>
+            <tr>
+              <th style="text-align:left;border-bottom:1px solid #000;">品項</th>
+              <th style="text-align:right;border-bottom:1px solid #000;">數量</th>
+              <th style="text-align:right;border-bottom:1px solid #000;">小計</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+        <div class="total-row">總金額：$${total}</div>
+        <div class="order-id-row">訂單編號：${order.orderId || order.id}</div>
+      `;
+
+      // 設定列印區域
+      const printArea = document.getElementById('printArea');
+      printArea.innerHTML = printContent;
+
+      // 列印
+      window.print();
+    };
+  </script>
+</body>
+</html> 
