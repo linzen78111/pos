@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>情報分析系統 - G茶餐酒館</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    
+    /* 標題區域 */
+    .header { background: #2d2320; color: #e0b873; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 1.8em; }
+    .nav-buttons { display: flex; gap: 10px; }
+    .nav-btn { padding: 8px 16px; background: #e0b873; color: #2d2320; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; }
+    .nav-btn:hover { background: #d4a862; }
+    
+    /* 控制面板 */
+    .control-panel { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .control-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+    .control-group { display: flex; flex-direction: column; }
+    .control-group label { margin-bottom: 5px; font-weight: bold; color: #2d2320; }
+    .control-group input, .control-group select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    
+    /* 統計卡片 */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+    .stat-card.revenue { border-left: 4px solid #4CAF50; }
+    .stat-card.orders { border-left: 4px solid #2196F3; }
+    .stat-card.items { border-left: 4px solid #FF9800; }
+    .stat-card.avg { border-left: 4px solid #9C27B0; }
+    .stat-value { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+    .stat-label { color: #666; font-size: 0.9em; }
+    .stat-change { margin-top: 10px; font-size: 0.8em; }
+    .stat-change.positive { color: #4CAF50; }
+    .stat-change.negative { color: #f44336; }
+    
+    /* 圖表區域 */
+    .chart-section { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .chart-header h3 { margin: 0; color: #2d2320; }
+    .chart-container { height: 400px; margin: 20px 0; }
+    .chart-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .chart-tab { padding: 8px 16px; background: #f5f5f5; border: none; border-radius: 6px; cursor: pointer; }
+    .chart-tab.active { background: #e0b873; color: #2d2320; font-weight: bold; }
+    
+    /* 表格樣式 */
+    .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table th { background: #f8f8f8; font-weight: bold; color: #2d2320; }
+    .table tr:hover { background: #f9f9f9; }
+    
+    /* 按鈕樣式 */
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 2px; }
+    .btn-primary { background: #2196F3; color: white; }
+    .btn-success { background: #4CAF50; color: white; }
+    .btn-warning { background: #FF9800; color: white; }
+    .btn:hover { opacity: 0.8; }
+    
+    /* 時段分析 */
+    .time-slot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+    .time-slot-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid transparent; }
+    .time-slot-card.peak { border-color: #e74c3c; background: #ffeaa7; }
+    .time-slot-card.high { border-color: #f39c12; background: #fab1a0; }
+    .time-slot-card.normal { border-color: #74b9ff; background: #81ecec; }
+    .time-slot-card.low { border-color: #a29bfe; background: #fd79a8; }
+    .time-slot-title { font-weight: bold; margin-bottom: 5px; }
+    .time-slot-value { font-size: 1.2em; color: #2d2320; }
+    
+    /* 商品排行 */
+    .product-ranking { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .ranking-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+    .ranking-item:last-child { border-bottom: none; }
+    .ranking-position { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; }
+    .ranking-position.gold { background: #f39c12; }
+    .ranking-position.silver { background: #95a5a6; }
+    .ranking-position.bronze { background: #cd7f32; }
+    .ranking-position.normal { background: #74b9ff; }
+    .ranking-info { flex: 1; margin-left: 15px; }
+    .ranking-name { font-weight: bold; }
+    .ranking-details { font-size: 0.9em; color: #666; }
+    .ranking-value { font-weight: bold; color: #2d2320; }
+    
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+      .control-row { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .product-ranking { grid-template-columns: 1fr; }
+      .time-slot-grid { grid-template-columns: repeat(2, 1fr); }
+      .header { flex-direction: column; gap: 15px; }
+      .nav-buttons { flex-wrap: wrap; justify-content: center; }
+      .chart-header { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 登入區域 -->
+  <div class="container" id="authContainer" style="display:none;max-width:400px;margin:100px auto;">
+    <div class="control-panel">
+      <h2>情報分析登入</h2>
+      <div class="control-group">
+        <input type="email" id="authEmail" placeholder="Email" />
+      </div>
+      <div class="control-group">
+        <input type="password" id="authPassword" placeholder="密碼" />
+      </div>
+      <button id="authLoginBtn" class="btn btn-primary" style="width:100%;">登入</button>
+      <div id="authMsg" style="color:#f44336;margin-top:15px;text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="container" id="mainContainer" style="display:none;">
+    <div class="header">
+      <h1>📊 情報分析系統</h1>
+      <div class="nav-buttons">
+        <a href="kitchen_orders.html" class="nav-btn">🍳 廚房看板</a>
+        <a href="daily_report.html" class="nav-btn">📋 日結帳</a>
+        <a href="inventory_management.html" class="nav-btn">📦 庫存管理</a>
+        <a href="system_settings.html" class="nav-btn">⚙️ 系統設定</a>
+        <button class="nav-btn" onclick="logout()">登出</button>
+      </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="control-panel">
+      <h3>📅 分析條件設定</h3>
+      <div class="control-row">
+        <div class="control-group">
+          <label>開始日期：</label>
+          <input type="date" id="startDate" />
+        </div>
+        <div class="control-group">
+          <label>結束日期：</label>
+          <input type="date" id="endDate" />
+        </div>
+        <div class="control-group">
+          <label>比較期間：</label>
+          <select id="compareType">
+            <option value="none">不比較</option>
+            <option value="previous">前一期間</option>
+            <option value="lastYear">去年同期</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>用餐方式：</label>
+          <select id="dineTypeFilter">
+            <option value="all">全部</option>
+            <option value="內用">內用</option>
+            <option value="外帶">外帶</option>
+          </select>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 15px;">
+        <button class="btn btn-primary" onclick="generateAnalysis()">🔍 生成分析報告</button>
+        <button class="btn btn-success" onclick="exportReport()">📤 匯出報告</button>
+      </div>
+    </div>
+
+    <!-- 統計卡片 -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card revenue">
+        <div class="stat-value" id="totalRevenue">$0</div>
+        <div class="stat-label">總營業額</div>
+        <div class="stat-change" id="revenueChange"></div>
+      </div>
+      <div class="stat-card orders">
+        <div class="stat-value" id="totalOrders">0</div>
+        <div class="stat-label">總訂單數</div>
+        <div class="stat-change" id="ordersChange"></div>
+      </div>
+      <div class="stat-card items">
+        <div class="stat-value" id="totalItems">0</div>
+        <div class="stat-label">總商品數</div>
+        <div class="stat-change" id="itemsChange"></div>
+      </div>
+      <div class="stat-card avg">
+        <div class="stat-value" id="avgOrder">$0</div>
+        <div class="stat-label">平均客單價</div>
+        <div class="stat-change" id="avgChange"></div>
+      </div>
+    </div>
+
+    <!-- 時段分析 -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>⏰ 時段銷售分析</h3>
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="switchTimeChart('hourly')">每小時</button>
+          <button class="chart-tab" onclick="switchTimeChart('daily')">每日</button>
+          <button class="chart-tab" onclick="switchTimeChart('weekly')">每週</button>
+        </div>
+      </div>
+      <div class="time-slot-grid" id="timeSlotGrid">
+        <!-- 時段數據將在這裡動態生成 -->
+      </div>
+      <div class="chart-container" id="timeChart">
+        <canvas id="timeChartCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- 商品銷售分析 -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>🛍️ 商品銷售分析</h3>
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="switchProductChart('ranking')">銷售排行</button>
+          <button class="chart-tab" onclick="switchProductChart('revenue')">營收排行</button>
+          <button class="chart-tab" onclick="switchProductChart('category')">分類分析</button>
+        </div>
+      </div>
+      <div class="product-ranking" id="productRanking">
+        <!-- 商品排行將在這裡動態生成 -->
+      </div>
+      <div class="chart-container" id="productChart">
+        <canvas id="productChartCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- 詳細數據表 -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>📋 詳細數據表</h3>
+      </div>
+      <div id="detailTable">
+        <!-- 詳細數據表將在這裡動態生成 -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentAnalysisData = null;
+    let currentTimeChart = 'hourly';
+    let currentProductChart = 'ranking';
+
+    // 初始化日期
+    function initializeDates() {
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+      document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    }
+
+    // 生成分析報告
+    async function generateAnalysis() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const compareType = document.getElementById('compareType').value;
+      const dineTypeFilter = document.getElementById('dineTypeFilter').value;
+      
+      if (!startDate || !endDate) {
+        alert('請選擇分析日期範圍');
+        return;
+      }
+      
+      if (new Date(startDate) > new Date(endDate)) {
+        alert('開始日期不能晚於結束日期');
+        return;
+      }
+      
+      try {
+        // 顯示載入狀態
+        showLoadingState();
+        
+        // 載入訂單數據
+        const ordersData = await loadOrdersData(startDate, endDate, dineTypeFilter);
+        
+        // 載入比較數據
+        let compareData = null;
+        if (compareType !== 'none') {
+          compareData = await loadCompareData(startDate, endDate, compareType, dineTypeFilter);
+        }
+        
+        // 分析數據
+        currentAnalysisData = analyzeData(ordersData, compareData);
+        
+        // 渲染結果
+        renderAnalysisResults();
+        
+      } catch (error) {
+        console.error('生成分析報告失敗:', error);
+        alert('生成分析報告失敗，請重試');
+      }
+    }
+
+    // 載入訂單數據
+    async function loadOrdersData(startDate, endDate, dineTypeFilter) {
+      const start = new Date(startDate);
+      const end = new Date(endDate + 'T23:59:59');
+      
+      let q = query(
+        collection(db, "orders"),
+        where("timestamp", ">=", start),
+        where("timestamp", "<=", end),
+        orderBy("timestamp", "desc")
+      );
+      
+      const snapshot = await getDocs(q);
+      const orders = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (dineTypeFilter === 'all' || data.dineType === dineTypeFilter) {
+          orders.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp.toDate()
+          });
+        }
+      });
+      
+      return orders;
+    }
+
+    // 載入比較數據
+    async function loadCompareData(startDate, endDate, compareType, dineTypeFilter) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      
+      let compareStart, compareEnd;
+      
+      if (compareType === 'previous') {
+        compareEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+        compareStart = new Date(compareEnd.getTime() - daysDiff * 24 * 60 * 60 * 1000);
+      } else if (compareType === 'lastYear') {
+        compareStart = new Date(start.getFullYear() - 1, start.getMonth(), start.getDate());
+        compareEnd = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
+      }
+      
+      return await loadOrdersData(
+        compareStart.toISOString().split('T')[0],
+        compareEnd.toISOString().split('T')[0],
+        dineTypeFilter
+      );
+    }
+
+    // 分析數據
+    function analyzeData(orders, compareOrders = null) {
+      const analysis = {
+        basic: calculateBasicStats(orders),
+        timeSlots: analyzeTimeSlots(orders),
+        products: analyzeProducts(orders),
+        categories: analyzeCategories(orders),
+        trends: analyzeTrends(orders),
+        compare: compareOrders ? calculateBasicStats(compareOrders) : null
+      };
+      
+      return analysis;
+    }
+
+    // 計算基本統計
+    function calculateBasicStats(orders) {
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+      const totalOrders = orders.length;
+      const totalItems = orders.reduce((sum, order) => {
+        return sum + (order.items ? order.items.reduce((itemSum, item) => itemSum + item.quantity, 0) : 0);
+      }, 0);
+      const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      
+      return {
+        totalRevenue,
+        totalOrders,
+        totalItems,
+        avgOrderValue
+      };
+    }
+
+    // 分析時段
+    function analyzeTimeSlots(orders) {
+      const hourlyData = {};
+      const dailyData = {};
+      const weeklyData = {};
+      
+      orders.forEach(order => {
+        const date = order.timestamp;
+        const hour = date.getHours();
+        const day = date.getDay(); // 0=Sunday, 1=Monday, ...
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // 每小時統計
+        if (!hourlyData[hour]) {
+          hourlyData[hour] = { revenue: 0, orders: 0, items: 0 };
+        }
+        hourlyData[hour].revenue += order.totalAmount || 0;
+        hourlyData[hour].orders += 1;
+        hourlyData[hour].items += order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+        
+        // 每日統計
+        if (!dailyData[dateStr]) {
+          dailyData[dateStr] = { revenue: 0, orders: 0, items: 0 };
+        }
+        dailyData[dateStr].revenue += order.totalAmount || 0;
+        dailyData[dateStr].orders += 1;
+        dailyData[dateStr].items += order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+        
+        // 每週統計
+        const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        const weekDay = weekDays[day];
+        if (!weeklyData[weekDay]) {
+          weeklyData[weekDay] = { revenue: 0, orders: 0, items: 0 };
+        }
+        weeklyData[weekDay].revenue += order.totalAmount || 0;
+        weeklyData[weekDay].orders += 1;
+        weeklyData[weekDay].items += order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
+      });
+      
+      return { hourlyData, dailyData, weeklyData };
+    }
+
+    // 分析商品
+    function analyzeProducts(orders) {
+      const productStats = {};
+      
+      orders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            if (!productStats[item.name]) {
+              productStats[item.name] = {
+                name: item.name,
+                quantity: 0,
+                revenue: 0,
+                orders: 0
+              };
+            }
+            productStats[item.name].quantity += item.quantity;
+            productStats[item.name].revenue += item.subtotal || (item.price * item.quantity);
+          });
+        }
+      });
+      
+      return Object.values(productStats);
+    }
+
+    // 分析分類
+    function analyzeCategories(orders) {
+      // 這裡需要載入菜單數據來取得分類資訊
+      // 簡化版本，直接返回基本統計
+      return {};
+    }
+
+    // 分析趨勢
+    function analyzeTrends(orders) {
+      // 分析銷售趨勢
+      const dailyTrends = {};
+      
+      orders.forEach(order => {
+        const dateStr = order.timestamp.toISOString().split('T')[0];
+        if (!dailyTrends[dateStr]) {
+          dailyTrends[dateStr] = { revenue: 0, orders: 0 };
+        }
+        dailyTrends[dateStr].revenue += order.totalAmount || 0;
+        dailyTrends[dateStr].orders += 1;
+      });
+      
+      return dailyTrends;
+    }
+
+    // 顯示載入狀態
+    function showLoadingState() {
+      document.getElementById('totalRevenue').textContent = '載入中...';
+      document.getElementById('totalOrders').textContent = '載入中...';
+      document.getElementById('totalItems').textContent = '載入中...';
+      document.getElementById('avgOrder').textContent = '載入中...';
+    }
+
+    // 渲染分析結果
+    function renderAnalysisResults() {
+      if (!currentAnalysisData) return;
+      
+      renderBasicStats();
+      renderTimeSlots();
+      renderProductRanking();
+      renderDetailTable();
+    }
+
+    // 渲染基本統計
+    function renderBasicStats() {
+      const { basic, compare } = currentAnalysisData;
+      
+      document.getElementById('totalRevenue').textContent = `$${basic.totalRevenue.toFixed(0)}`;
+      document.getElementById('totalOrders').textContent = basic.totalOrders;
+      document.getElementById('totalItems').textContent = basic.totalItems;
+      document.getElementById('avgOrder').textContent = `$${basic.avgOrderValue.toFixed(0)}`;
+      
+      // 顯示比較數據
+      if (compare) {
+        const revenueChange = ((basic.totalRevenue - compare.totalRevenue) / compare.totalRevenue * 100).toFixed(1);
+        const ordersChange = ((basic.totalOrders - compare.totalOrders) / compare.totalOrders * 100).toFixed(1);
+        const itemsChange = ((basic.totalItems - compare.totalItems) / compare.totalItems * 100).toFixed(1);
+        const avgChange = ((basic.avgOrderValue - compare.avgOrderValue) / compare.avgOrderValue * 100).toFixed(1);
+        
+        document.getElementById('revenueChange').textContent = `${revenueChange > 0 ? '+' : ''}${revenueChange}%`;
+        document.getElementById('ordersChange').textContent = `${ordersChange > 0 ? '+' : ''}${ordersChange}%`;
+        document.getElementById('itemsChange').textContent = `${itemsChange > 0 ? '+' : ''}${itemsChange}%`;
+        document.getElementById('avgChange').textContent = `${avgChange > 0 ? '+' : ''}${avgChange}%`;
+        
+        document.getElementById('revenueChange').className = `stat-change ${revenueChange >= 0 ? 'positive' : 'negative'}`;
+        document.getElementById('ordersChange').className = `stat-change ${ordersChange >= 0 ? 'positive' : 'negative'}`;
+        document.getElementById('itemsChange').className = `stat-change ${itemsChange >= 0 ? 'positive' : 'negative'}`;
+        document.getElementById('avgChange').className = `stat-change ${avgChange >= 0 ? 'positive' : 'negative'}`;
+      }
+    }
+
+    // 渲染時段分析
+    function renderTimeSlots() {
+      const { timeSlots } = currentAnalysisData;
+      const container = document.getElementById('timeSlotGrid');
+      
+      let data, title;
+      if (currentTimeChart === 'hourly') {
+        data = timeSlots.hourlyData;
+        title = '小時';
+      } else if (currentTimeChart === 'daily') {
+        data = timeSlots.dailyData;
+        title = '日期';
+      } else {
+        data = timeSlots.weeklyData;
+        title = '星期';
+      }
+      
+      const maxRevenue = Math.max(...Object.values(data).map(d => d.revenue));
+      
+      let html = '';
+      Object.entries(data).forEach(([key, value]) => {
+        const percentage = maxRevenue > 0 ? (value.revenue / maxRevenue) : 0;
+        let level = 'low';
+        if (percentage > 0.8) level = 'peak';
+        else if (percentage > 0.6) level = 'high';
+        else if (percentage > 0.3) level = 'normal';
+        
+        const displayKey = currentTimeChart === 'hourly' ? `${key}:00` : key;
+        
+        html += `
+          <div class="time-slot-card ${level}">
+            <div class="time-slot-title">${displayKey}</div>
+            <div class="time-slot-value">$${value.revenue.toFixed(0)}</div>
+            <div style="font-size: 0.8em; color: #666;">${value.orders} 單</div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // 渲染商品排行
+    function renderProductRanking() {
+      const { products } = currentAnalysisData;
+      const container = document.getElementById('productRanking');
+      
+      let sortedProducts;
+      if (currentProductChart === 'ranking') {
+        sortedProducts = products.sort((a, b) => b.quantity - a.quantity);
+      } else {
+        sortedProducts = products.sort((a, b) => b.revenue - a.revenue);
+      }
+      
+      const topProducts = sortedProducts.slice(0, 10);
+      const bottomProducts = sortedProducts.slice(-10).reverse();
+      
+      let html = `
+        <div class="ranking-card">
+          <h4>🏆 TOP 10 ${currentProductChart === 'ranking' ? '銷量' : '營收'}排行</h4>
+          ${topProducts.map((product, index) => {
+            let positionClass = 'normal';
+            if (index === 0) positionClass = 'gold';
+            else if (index === 1) positionClass = 'silver';
+            else if (index === 2) positionClass = 'bronze';
+            
+            return `
+              <div class="ranking-item">
+                <div class="ranking-position ${positionClass}">${index + 1}</div>
+                <div class="ranking-info">
+                  <div class="ranking-name">${product.name}</div>
+                  <div class="ranking-details">
+                    銷量: ${product.quantity} | 營收: $${product.revenue.toFixed(0)}
+                  </div>
+                </div>
+                <div class="ranking-value">
+                  ${currentProductChart === 'ranking' ? product.quantity : `$${product.revenue.toFixed(0)}`}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <div class="ranking-card">
+          <h4>📉 待改善商品</h4>
+          ${bottomProducts.map((product, index) => `
+            <div class="ranking-item">
+              <div class="ranking-position normal">${sortedProducts.length - bottomProducts.length + index + 1}</div>
+              <div class="ranking-info">
+                <div class="ranking-name">${product.name}</div>
+                <div class="ranking-details">
+                  銷量: ${product.quantity} | 營收: $${product.revenue.toFixed(0)}
+                </div>
+              </div>
+              <div class="ranking-value">
+                ${currentProductChart === 'ranking' ? product.quantity : `$${product.revenue.toFixed(0)}`}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    }
+
+    // 渲染詳細數據表
+    function renderDetailTable() {
+      const { products } = currentAnalysisData;
+      const container = document.getElementById('detailTable');
+      
+      let html = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>商品名稱</th>
+              <th>銷售數量</th>
+              <th>銷售金額</th>
+              <th>平均單價</th>
+              <th>市場佔有率</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      const totalRevenue = products.reduce((sum, p) => sum + p.revenue, 0);
+      const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0);
+      
+      products.sort((a, b) => b.revenue - a.revenue).forEach(product => {
+        const avgPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
+        const marketShare = totalRevenue > 0 ? (product.revenue / totalRevenue * 100).toFixed(1) : 0;
+        
+        html += `
+          <tr>
+            <td>${product.name}</td>
+            <td>${product.quantity}</td>
+            <td>$${product.revenue.toFixed(0)}</td>
+            <td>$${avgPrice.toFixed(0)}</td>
+            <td>${marketShare}%</td>
+          </tr>
+        `;
+      });
+      
+      html += `
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    }
+
+    // 切換時段圖表
+    function switchTimeChart(type) {
+      currentTimeChart = type;
+      document.querySelectorAll('.chart-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      if (currentAnalysisData) {
+        renderTimeSlots();
+      }
+    }
+
+    // 切換商品圖表
+    function switchProductChart(type) {
+      currentProductChart = type;
+      document.querySelectorAll('.chart-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      if (currentAnalysisData) {
+        renderProductRanking();
+      }
+    }
+
+    // 匯出報告
+    function exportReport() {
+      if (!currentAnalysisData) {
+        alert('請先生成分析報告');
+        return;
+      }
+      
+      // 簡化版本，直接下載JSON
+      const dataStr = JSON.stringify(currentAnalysisData, null, 2);
+      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analytics_report_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 全域函數
+    window.generateAnalysis = generateAnalysis;
+    window.exportReport = exportReport;
+    window.switchTimeChart = switchTimeChart;
+    window.switchProductChart = switchProductChart;
+    window.logout = function() {
+      signOut(auth);
+    };
+
+    // Firebase Auth
+    const authContainer = document.getElementById('authContainer');
+    const mainContainer = document.getElementById('mainContainer');
+    const authMsg = document.getElementById('authMsg');
+
+    document.getElementById('authLoginBtn').onclick = async function() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      authMsg.innerText = '';
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        authMsg.innerText = '登入失敗：' + (e.message || '請檢查帳號密碼');
+      }
+    };
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        authContainer.style.display = 'none';
+        mainContainer.style.display = 'block';
+        initializeDates();
+      } else {
+        mainContainer.style.display = 'none';
+        authContainer.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html> 

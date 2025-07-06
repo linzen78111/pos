@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>全局設定示例</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .card { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h3 { margin: 0 0 15px 0; color: #2d2320; border-bottom: 2px solid #e0b873; padding-bottom: 10px; }
+    .setting-item { margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
+    .setting-label { font-weight: bold; color: #2d2320; }
+    .setting-value { color: #666; margin-left: 10px; }
+    .status { padding: 8px 16px; border-radius: 20px; color: white; font-weight: bold; display: inline-block; }
+    .status.open { background: #4CAF50; }
+    .status.closed { background: #f44336; }
+    .btn { padding: 8px 16px; background: #e0b873; color: #2d2320; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; }
+    .btn:hover { background: #d4a862; }
+    .loading { text-align: center; color: #666; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h3>🌐 全局設定系統示例</h3>
+      <p>這個頁面展示了全局設定系統如何在整個應用中共享設定資訊。</p>
+      <button class="btn" onclick="loadSettings()">重新載入設定</button>
+      <button class="btn" onclick="checkBusinessStatus()">檢查營業狀態</button>
+    </div>
+
+    <div id="settingsContent" class="loading">載入設定中...</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import globalSettings from './global_settings.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 載入並顯示設定
+    async function loadSettings() {
+      const content = document.getElementById('settingsContent');
+      content.innerHTML = '<div class="loading">載入設定中...</div>';
+      
+      try {
+        await globalSettings.initialize(db);
+        displaySettings();
+      } catch (error) {
+        console.error('載入設定失敗:', error);
+        content.innerHTML = '<div style="color: #f44336;">載入設定失敗：' + error.message + '</div>';
+      }
+    }
+
+    // 顯示設定資訊
+    function displaySettings() {
+      const content = document.getElementById('settingsContent');
+      
+      // 更新頁面標題
+      document.title = `${globalSettings.getStoreName()} - 全局設定示例`;
+      
+      let html = '';
+      
+      // 店家資訊
+      html += '<div class="card">';
+      html += '<h3>🏪 店家資訊</h3>';
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">店家名稱：</span>';
+      html += '<span class="setting-value">' + globalSettings.getStoreName() + '</span>';
+      html += '</div>';
+      
+      const storeInfo = globalSettings.get('store_info');
+      if (storeInfo) {
+        if (storeInfo.address) {
+          html += '<div class="setting-item">';
+          html += '<span class="setting-label">地址：</span>';
+          html += '<span class="setting-value">' + storeInfo.address + '</span>';
+          html += '</div>';
+        }
+        if (storeInfo.phone) {
+          html += '<div class="setting-item">';
+          html += '<span class="setting-label">電話：</span>';
+          html += '<span class="setting-value">' + storeInfo.phone + '</span>';
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      
+      // 系統參數
+      html += '<div class="card">';
+      html += '<h3>⚙️ 系統參數</h3>';
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">刷新間隔：</span>';
+      html += '<span class="setting-value">' + globalSettings.getRefreshInterval() + ' 秒</span>';
+      html += '</div>';
+      
+      const takeoutRange = globalSettings.getTakeoutNumberRange();
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">取餐號碼範圍：</span>';
+      html += '<span class="setting-value">' + takeoutRange.min + ' - ' + takeoutRange.max + '</span>';
+      html += '</div>';
+      
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">低庫存閾值：</span>';
+      html += '<span class="setting-value">' + globalSettings.getLowStockThreshold() + '%</span>';
+      html += '</div>';
+      
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">音效提醒：</span>';
+      html += '<span class="setting-value">' + (globalSettings.isSoundEnabled() ? '✅ 啟用' : '❌ 停用') + '</span>';
+      html += '</div>';
+      
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">自動庫存扣減：</span>';
+      html += '<span class="setting-value">' + (globalSettings.isAutoDeductionEnabled() ? '✅ 啟用' : '❌ 停用') + '</span>';
+      html += '</div>';
+      html += '</div>';
+      
+      // 列印設定
+      html += '<div class="card">';
+      html += '<h3>🖨️ 列印設定</h3>';
+      const printSettings = globalSettings.getPrintSettings();
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">出單機寬度：</span>';
+      html += '<span class="setting-value">' + printSettings.printerWidth + 'mm</span>';
+      html += '</div>';
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">字體大小：</span>';
+      html += '<span class="setting-value">' + printSettings.printFontSize + 'px</span>';
+      html += '</div>';
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">自動列印：</span>';
+      html += '<span class="setting-value">' + (printSettings.autoPrint ? '✅ 啟用' : '❌ 停用') + '</span>';
+      html += '</div>';
+      html += '</div>';
+      
+      // 營業狀態
+      html += '<div class="card">';
+      html += '<h3>🕐 營業狀態</h3>';
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">今日營業：</span>';
+      html += '<span class="setting-value">' + (globalSettings.isOpenToday() ? '✅ 營業' : '❌ 休息') + '</span>';
+      html += '</div>';
+      
+      const todayHours = globalSettings.getTodayBusinessHours();
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">營業時間：</span>';
+      html += '<span class="setting-value">' + todayHours.open + ' - ' + todayHours.close + '</span>';
+      html += '</div>';
+      
+      html += '<div class="setting-item">';
+      html += '<span class="setting-label">目前狀態：</span>';
+      const isOpen = globalSettings.isCurrentlyOpen();
+      html += '<span class="status ' + (isOpen ? 'open' : 'closed') + '">';
+      html += isOpen ? '🟢 營業中' : '🔴 休息中';
+      html += '</span>';
+      html += '</div>';
+      html += '</div>';
+      
+      content.innerHTML = html;
+    }
+
+    // 檢查營業狀態
+    function checkBusinessStatus() {
+      const isOpen = globalSettings.isCurrentlyOpen();
+      const todayHours = globalSettings.getTodayBusinessHours();
+      
+      let message = '📍 營業狀態檢查\n\n';
+      message += `今日營業：${globalSettings.isOpenToday() ? '是' : '否'}\n`;
+      message += `營業時間：${todayHours.open} - ${todayHours.close}\n`;
+      message += `目前時間：${new Date().toLocaleTimeString('zh-TW')}\n`;
+      message += `目前狀態：${isOpen ? '🟢 營業中' : '🔴 休息中'}`;
+      
+      alert(message);
+    }
+
+    // 監聽設定更新事件
+    window.addEventListener('globalSettingsUpdated', function(event) {
+      console.log('設定已更新:', event.detail);
+      displaySettings();
+    });
+
+    // 全域函數
+    window.loadSettings = loadSettings;
+    window.checkBusinessStatus = checkBusinessStatus;
+
+    // 頁面載入時初始化
+    window.onload = function() {
+      loadSettings();
+    };
+  </script>
+</body>
+</html> 

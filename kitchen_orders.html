@@ -22,7 +22,11 @@
     .order-status.done { background: #b0dbe6; }
     .print-btn { background: #3bb4c1; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; }
     .print-btn:active { background: #b85c38; }
-    @media (max-width: 700px) { .container { max-width: 99vw; } }
+    @media (max-width: 700px) { 
+      .container { max-width: 99vw; } 
+      .container > div:first-child { flex-direction: column; gap: 10px; }
+      .container > div:first-child > div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    }
     /* 列印樣式 */
     @media print {
       body, html { background: #fff !important; }
@@ -52,6 +56,10 @@
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h2>廚房接單看板</h2>
       <div>
+        <button id="inventoryBtn" style="background:#9C27B0;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToInventory()">庫存業務</button>
+        <button id="dailyReportBtn" style="background:#FF9800;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToDailyReport()">會計業務</button>
+        <button id="analyticsBtn" style="background:#2196F3;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToAnalytics()">情報分析</button>
+        <button id="settingsBtn" style="background:#795548;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToSettings()">系統設定</button>
         <button id="testSoundBtn" style="background:#4CAF50;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="testSound()">測試音效</button>
         <button id="stopSoundBtn" style="background:#f44336;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="stopNotificationSound()">停止提醒音</button>
         <button id="logoutBtn" style="background:#e0f7fa;color:#b85c38;padding:6px 18px;border-radius:8px;font-size:1em;font-weight:bold;border:none;">登出</button>
@@ -72,6 +80,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
     import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import globalSettings from './global_settings.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
@@ -117,6 +126,7 @@
           </div>
           <div style="text-align:right;color:#b85c38;font-weight:bold;font-size:1.1em;">總金額：$${total}</div>
           <button class="print-btn" onclick="printOrder('${order.id}')">列印</button>
+          <button class="print-btn" onclick="printThermalOrder('${order.id}')" style="background:#FF9800;margin-left:8px;">🧾 出單機</button>
         `;
         list.appendChild(card);
       });
@@ -162,6 +172,12 @@
     
     // 播放提醒音效
     function playNotificationSound() {
+      // 檢查是否啟用音效
+      if (!globalSettings.isSoundEnabled()) {
+        console.log('音效已停用');
+        return;
+      }
+      
       if (!notificationAudio) {
         notificationAudio = document.getElementById('notificationSound');
       }
@@ -251,44 +267,76 @@
       if (user) {
         authContainer.style.display = 'none';
         mainContainer.style.display = '';
-        listenOrders();
         
-        // 初始化音頻並顯示提示
-        setTimeout(() => {
-          initializeAudio();
-        }, 1000);
+        // 初始化全局設定
+        globalSettings.initialize(db).then(() => {
+          console.log('全局設定初始化完成');
+          updateUIWithSettings();
+          listenOrders();
+          
+          // 初始化音頻並顯示提示
+          setTimeout(() => {
+            initializeAudio();
+          }, 1000);
+        });
       } else {
         mainContainer.style.display = 'none';
         authContainer.style.display = '';
       }
     });
     
+    // 根據全局設定更新UI
+    function updateUIWithSettings() {
+      // 更新頁面標題中的店名
+      const storeName = globalSettings.getStoreName();
+      document.querySelector('h2').textContent = `${storeName} - 廚房接單看板`;
+      
+      // 根據音效設定顯示/隱藏音效按鈕
+      const soundEnabled = globalSettings.isSoundEnabled();
+      const testSoundBtn = document.getElementById('testSoundBtn');
+      const stopSoundBtn = document.getElementById('stopSoundBtn');
+      
+      if (!soundEnabled) {
+        testSoundBtn.style.display = 'none';
+        stopSoundBtn.style.display = 'none';
+      }
+      
+      // 設定刷新間隔
+      const refreshInterval = globalSettings.getRefreshInterval();
+      if (refreshInterval && refreshInterval !== 10) {
+        console.log(`使用自訂刷新間隔: ${refreshInterval}秒`);
+      }
+    }
+
     // 初始化音頻
     function initializeAudio() {
       if (!notificationAudio) {
         notificationAudio = document.getElementById('notificationSound');
       }
       
-      // 顯示音頻權限提示
-      const audioTip = document.createElement('div');
-      audioTip.style.cssText = `
-        background: #2196F3;
-        color: white;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        text-align: center;
-        font-size: 0.9em;
-      `;
-      audioTip.innerHTML = '💡 提醒：請點擊「測試音效」按鈕確保新訂單提醒音正常工作';
-      
-      const ordersList = document.getElementById('ordersList');
-      ordersList.parentNode.insertBefore(audioTip, ordersList);
-      
-      // 5秒後自動隱藏提示
-      setTimeout(() => {
-        audioTip.remove();
-      }, 8000);
+      // 只有啟用音效時才顯示提示
+      if (globalSettings.isSoundEnabled()) {
+        // 顯示音頻權限提示
+        const audioTip = document.createElement('div');
+        audioTip.style.cssText = `
+          background: #2196F3;
+          color: white;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          text-align: center;
+          font-size: 0.9em;
+        `;
+        audioTip.innerHTML = '💡 提醒：請點擊「測試音效」按鈕確保新訂單提醒音正常工作';
+        
+        const ordersList = document.getElementById('ordersList');
+        ordersList.parentNode.insertBefore(audioTip, ordersList);
+        
+        // 8秒後自動隱藏提示
+        setTimeout(() => {
+          audioTip.remove();
+        }, 8000);
+      }
     }
 
     // 測試音效功能
@@ -313,9 +361,33 @@
       }
     }
     
+    // 跳轉到庫存管理頁面
+    function goToInventory() {
+      window.open('inventory_management.html', '_blank');
+    }
+
+    // 跳轉到日結帳頁面
+    function goToDailyReport() {
+      window.open('daily_report.html', '_blank');
+    }
+
+    // 跳轉到情報分析頁面
+    function goToAnalytics() {
+      window.open('analytics.html', '_blank');
+    }
+
+    // 跳轉到系統設定頁面
+    function goToSettings() {
+      window.open('system_settings.html', '_blank');
+    }
+
     // 全域函數
     window.stopNotificationSound = stopNotificationSound;
     window.testSound = testSound;
+    window.goToInventory = goToInventory;
+    window.goToDailyReport = goToDailyReport;
+    window.goToAnalytics = goToAnalytics;
+    window.goToSettings = goToSettings;
     
     // 列印功能
     window.printOrder = function(orderId) {
@@ -362,6 +434,146 @@
 
       // 列印
       window.print();
+    };
+
+    // 熱感應出單機列印功能
+    window.printThermalOrder = function(orderId) {
+      // 停止音頻播放
+      stopNotificationSound();
+      
+      const order = ordersData.find(o => o.id === orderId);
+      if (!order) {
+        alert('找不到訂單資料');
+        return;
+      }
+
+      // 計算總金額
+      let total = 0;
+      order.items.forEach(item => {
+        const price = item.price || 0;
+        const subtotal = price * item.quantity;
+        total += subtotal;
+      });
+
+      // 獲取列印設定
+      const printSettings = globalSettings.getPrintSettings();
+      const storeName = globalSettings.getStoreName();
+      
+      // 生成熱感應出單機格式
+      const printerWidth = printSettings.printerWidth || 80;
+      const fontSize = printSettings.printFontSize || 11;
+      const actualWidth = printerWidth === 58 ? '218px' : '302px';
+      
+      let thermalContent = `<div style="width:${actualWidth};margin:0 auto;padding:8px;font-family:monospace;font-size:${fontSize}px;line-height:1.2;background:#fff;">`;
+      thermalContent += `<div style="text-align:center;font-size:${fontSize + 5}px;font-weight:bold;margin-bottom:12px;">${storeName}</div>`;
+        thermalContent += '<div style="text-align:center;font-size:13px;margin-bottom:12px;">訂單確認</div>';
+        thermalContent += '<div style="border-bottom:1px solid #000;margin-bottom:8px;"></div>';
+      
+              // 訂單基本資訊 - 使用表格式佈局
+        thermalContent += '<div style="margin-bottom:8px;">';
+        thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>用餐方式:</span><span>' + (order.dineType || '') + '</span></div>';
+        
+        if (order.dineType === '外帶') {
+          thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>取餐號碼:</span><span style="font-weight:bold;font-size:16px;">' + (order.takeoutNumber || '001') + '</span></div>';
+        } else {
+          thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>桌號:</span><span style="font-weight:bold;font-size:16px;">' + (order.tableNumber || '') + '</span></div>';
+        }
+        
+        thermalContent += '<div style="font-size:9px;color:#666;">訂單編號: ' + (order.orderId || order.id) + '</div>';
+        thermalContent += '</div>';
+        thermalContent += '<div style="border-bottom:1px solid #000;margin-bottom:8px;"></div>';
+      
+              // 商品明細 - 表格式佈局
+        thermalContent += '<div style="margin-bottom:8px;">';
+        order.items.forEach(item => {
+          const price = item.price || 0;
+          const subtotal = price * item.quantity;
+          thermalContent += '<div style="margin-bottom:8px;">';
+          thermalContent += '<div style="font-weight:bold;margin-bottom:4px;">' + item.name + '</div>';
+          thermalContent += '<div style="display:flex;justify-content:space-between;font-size:10px;"><span>' + item.quantity + ' × $' + price + '</span><span>$' + subtotal + '</span></div>';
+          thermalContent += '</div>';
+        });
+        thermalContent += '</div>';
+        
+        thermalContent += '<div style="border-bottom:2px solid #000;margin-bottom:8px;"></div>';
+        
+        // 總計
+        thermalContent += '<div style="text-align:center;margin-bottom:12px;">';
+        thermalContent += '<div style="font-size:18px;font-weight:bold;">總計: $' + total + '</div>';
+        thermalContent += '</div>';
+        
+        // 時間資訊
+        const orderTime = order.timestamp ? order.timestamp.toDate() : new Date();
+        thermalContent += '<div style="border-top:1px solid #000;padding-top:8px;font-size:9px;text-align:center;color:#666;">';
+        thermalContent += '<div>下單時間: ' + orderTime.toLocaleString('zh-TW') + '</div>';
+        thermalContent += '<div>列印時間: ' + new Date().toLocaleString('zh-TW') + '</div>';
+        thermalContent += '</div>';
+      
+      thermalContent += '</div>';
+
+      // 創建預覽視窗
+      const printWindow = window.open('', '_blank', 'width=500,height=800');
+      const printHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>訂單列印預覽</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; }
+              @page { size: 80mm auto; margin: 0; }
+              .print-controls { display: none !important; }
+            }
+            body { 
+              font-family: monospace; 
+              margin: 0; 
+              padding: 10px; 
+              background: #f5f5f5;
+            }
+            .print-controls {
+              background: #3bb4c1;
+              color: white;
+              padding: 10px;
+              text-align: center;
+              margin-bottom: 10px;
+              border-radius: 8px;
+            }
+            .print-controls button {
+              background: white;
+              color: #3bb4c1;
+              border: none;
+              padding: 8px 16px;
+              margin: 0 5px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            }
+            .print-controls button:hover {
+              background: #f0f0f0;
+            }
+            .preview-container {
+              background: white;
+              border: 2px dashed #ccc;
+              margin: 0 auto;
+              max-width: 80mm;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-controls">
+            <h3>🧾 訂單出單機預覽 (80mm)</h3>
+            <button onclick="window.print()">🖨️ 列印</button>
+            <button onclick="window.close()">❌ 關閉</button>
+          </div>
+          <div class="preview-container">
+            ${thermalContent}
+          </div>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
     };
   </script>
 </body>

@@ -54,6 +54,21 @@
     .recommend-setting input { font-size: 1em; padding: 4px 8px; border: 1px solid #b0dbe6; border-radius: 6px; }
     .recommend-setting button { padding: 4px 14px; border-radius: 6px; border: none; background: #3bb4c1; color: #fff; font-weight: bold; cursor: pointer; }
     @media (max-width: 700px) { .container { max-width: 99vw; } }
+    
+    /* 彈出視窗樣式 */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; margin: 5% auto; padding: 20px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .close:hover { color: #000; }
+    
+    /* 配方設定樣式 */
+    .recipe-item { display: flex; align-items: center; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+    .recipe-item select, .recipe-item input { margin-right: 10px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    .recipe-item button { background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    .add-recipe-btn { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }
+    .recipe-summary { background: #f0f0f0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .recipe-cost { font-weight: bold; color: #b85c38; font-size: 1.1em; }
   </style>
 </head>
 <body>
@@ -90,16 +105,45 @@
       <input type="text" id="addNote" placeholder="備註/說明" />
       <label><input type="checkbox" id="addEnabled" checked /> 啟用</label>
       <button onclick="addMenuItem()">新增</button>
+      <button onclick="openRecipeModal('add')" style="background:#9C27B0;color:#fff;margin-left:10px;">設定配方</button>
     </div>
     <div class="msg" id="msg"></div>
     <table id="menuTable">
       <thead>
         <tr>
-          <th>名稱</th><th>金額</th><th>圖片</th><th>分類</th><th>備註</th><th>啟用</th><th>操作</th>
+          <th>名稱</th><th>金額</th><th>圖片</th><th>分類</th><th>備註</th><th>啟用</th><th>配方</th><th>操作</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+
+  <!-- 配方設定彈出視窗 -->
+  <div id="recipeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="recipeModalTitle">設定商品配方</h3>
+        <span class="close" onclick="closeRecipeModal()">&times;</span>
+      </div>
+      <div id="recipeModalContent">
+        <div style="margin-bottom: 15px;">
+          <strong>商品名稱：</strong><span id="recipeItemName">-</span>
+        </div>
+        <button class="add-recipe-btn" onclick="addRecipeItem()">➕ 新增原料</button>
+        <div id="recipeItemsList"></div>
+        <div class="recipe-summary">
+          <div class="recipe-cost">預估成本：$<span id="recipeTotalCost">0.00</span></div>
+          <div style="margin-top: 8px; color: #666;">
+            毛利率：<span id="recipeProfit">0%</span>
+            （售價：$<span id="recipePrice">0</span>）
+          </div>
+        </div>
+        <div style="text-align: right; margin-top: 20px;">
+          <button onclick="closeRecipeModal()" style="background: #ccc; color: #333; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">取消</button>
+          <button onclick="saveRecipe()" style="background: #3bb4c1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">儲存配方</button>
+        </div>
+      </div>
+    </div>
   </div>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
@@ -203,6 +247,9 @@
             <td><input value="${item.category || ''}" id="editCategory${idx}" style="max-width:80px;width:100%;" /></td>
             <td><input value="${item.note || ''}" id="editNote${idx}" style="max-width:180px;width:100%;" /></td>
             <td><input type="checkbox" id="editEnabled${idx}" ${item.enabled ? 'checked' : ''} /></td>
+            <td>
+              <button onclick="openRecipeModal('edit', ${idx})" style="background:#9C27B0;color:#fff;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:0.9em;">配方</button>
+            </td>
             <td class="actions">
               <button class="save" onclick="saveEdit(${idx})">儲存</button>
               <button class="cancel" onclick="cancelEdit(${idx})">取消</button>
@@ -216,6 +263,11 @@
             <td>${item.category || ''}</td>
             <td>${item.note || ''}</td>
             <td><input type="checkbox" disabled ${item.enabled ? 'checked' : ''} /></td>
+            <td>
+              <button onclick="openRecipeModal('edit', ${idx})" style="background:#9C27B0;color:#fff;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:0.9em;">
+                ${item.recipe && item.recipe.length > 0 ? '✓配方' : '設定'}
+              </button>
+            </td>
             <td class="actions">
               <button class="edit" onclick="editMenuItem(${idx})">編輯</button>
               <button class="delete" onclick="deleteMenuItem('${item.id}')">刪除</button>
@@ -327,6 +379,206 @@
     }
     // 初始化推薦類別欄位
     document.getElementById('recommendCategory').value = getRecommendCategory();
+
+    // 配方管理功能
+    let currentRecipeItem = null;
+    let currentRecipeMode = 'add'; // 'add' or 'edit'
+    let currentRecipeIndex = null;
+    let inventoryData = [];
+    let currentRecipe = [];
+
+    // 載入庫存資料
+    async function loadInventoryData() {
+      try {
+        const snapshot = await getDocs(collection(db, "inventory"));
+        inventoryData = [];
+        snapshot.forEach(doc => {
+          inventoryData.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+      } catch (error) {
+        console.error('載入庫存資料失敗:', error);
+        inventoryData = [];
+      }
+    }
+
+    // 打開配方設定彈出視窗
+    window.openRecipeModal = async function(mode, index = null) {
+      currentRecipeMode = mode;
+      currentRecipeIndex = index;
+      
+      // 載入庫存資料
+      await loadInventoryData();
+      
+      if (mode === 'add') {
+        const name = document.getElementById('addName').value.trim();
+        const price = parseInt(document.getElementById('addPrice').value || '0', 10);
+        if (!name) {
+          alert('請先輸入商品名稱');
+          return;
+        }
+        currentRecipeItem = { name, price, recipe: [] };
+        document.getElementById('recipeItemName').textContent = name;
+        document.getElementById('recipePrice').textContent = price;
+      } else {
+        currentRecipeItem = menuData[index];
+        document.getElementById('recipeItemName').textContent = currentRecipeItem.name;
+        document.getElementById('recipePrice').textContent = currentRecipeItem.price;
+      }
+      
+      currentRecipe = currentRecipeItem.recipe ? [...currentRecipeItem.recipe] : [];
+      renderRecipeItems();
+      updateRecipeCost();
+      document.getElementById('recipeModal').style.display = 'block';
+    };
+
+    // 關閉配方設定彈出視窗
+    window.closeRecipeModal = function() {
+      document.getElementById('recipeModal').style.display = 'none';
+      currentRecipeItem = null;
+      currentRecipe = [];
+    };
+
+    // 新增配方項目
+    window.addRecipeItem = function() {
+      currentRecipe.push({
+        ingredientId: '',
+        ingredientName: '',
+        quantity: 0,
+        unit: '',
+        cost: 0
+      });
+      renderRecipeItems();
+    };
+
+    // 移除配方項目
+    window.removeRecipeItem = function(index) {
+      currentRecipe.splice(index, 1);
+      renderRecipeItems();
+      updateRecipeCost();
+    };
+
+    // 渲染配方項目列表
+    function renderRecipeItems() {
+      const container = document.getElementById('recipeItemsList');
+      
+      if (currentRecipe.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">尚未設定配方原料</div>';
+        return;
+      }
+      
+      let html = '';
+      currentRecipe.forEach((recipe, index) => {
+        html += `
+          <div class="recipe-item">
+            <select onchange="updateRecipeIngredient(${index}, this.value)" style="min-width: 150px;">
+              <option value="">選擇原料</option>
+              ${inventoryData.map(item => 
+                `<option value="${item.id}" ${recipe.ingredientId === item.id ? 'selected' : ''}>
+                  ${item.name} (${item.unit})
+                </option>`
+              ).join('')}
+            </select>
+            <input type="number" placeholder="用量" value="${recipe.quantity}" 
+                   onchange="updateRecipeQuantity(${index}, this.value)" 
+                   style="width: 80px;" min="0" step="0.1" />
+            <span style="margin-right: 10px;">${recipe.unit}</span>
+            <span style="margin-right: 10px;">成本: $${recipe.cost.toFixed(2)}</span>
+            <button onclick="removeRecipeItem(${index})">移除</button>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // 更新配方原料
+    window.updateRecipeIngredient = function(index, ingredientId) {
+      const ingredient = inventoryData.find(item => item.id === ingredientId);
+      if (ingredient) {
+        currentRecipe[index].ingredientId = ingredientId;
+        currentRecipe[index].ingredientName = ingredient.name;
+        currentRecipe[index].unit = ingredient.unit;
+        currentRecipe[index].cost = (currentRecipe[index].quantity || 0) * ingredient.price;
+      } else {
+        currentRecipe[index].ingredientId = '';
+        currentRecipe[index].ingredientName = '';
+        currentRecipe[index].unit = '';
+        currentRecipe[index].cost = 0;
+      }
+      renderRecipeItems();
+      updateRecipeCost();
+    };
+
+    // 更新配方用量
+    window.updateRecipeQuantity = function(index, quantity) {
+      const qty = parseFloat(quantity) || 0;
+      currentRecipe[index].quantity = qty;
+      
+      const ingredient = inventoryData.find(item => item.id === currentRecipe[index].ingredientId);
+      if (ingredient) {
+        currentRecipe[index].cost = qty * ingredient.price;
+      }
+      
+      renderRecipeItems();
+      updateRecipeCost();
+    };
+
+    // 更新配方總成本
+    function updateRecipeCost() {
+      const totalCost = currentRecipe.reduce((sum, recipe) => sum + recipe.cost, 0);
+      const price = currentRecipeItem.price || 0;
+      const profit = price > 0 ? ((price - totalCost) / price * 100) : 0;
+      
+      document.getElementById('recipeTotalCost').textContent = totalCost.toFixed(2);
+      document.getElementById('recipeProfit').textContent = profit.toFixed(1) + '%';
+    }
+
+    // 儲存配方
+    window.saveRecipe = async function() {
+      try {
+        if (currentRecipeMode === 'add') {
+          // 新增商品時，先儲存商品再更新配方
+          const name = currentRecipeItem.name;
+          const price = currentRecipeItem.price;
+          const image = document.getElementById('addImage').value.trim();
+          const category = document.getElementById('addCategory').value.trim();
+          const note = document.getElementById('addNote').value.trim();
+          const enabled = document.getElementById('addEnabled').checked;
+          
+          await setDoc(doc(db, "menu", name), { 
+            name, price, image, category, note, enabled, 
+            recipe: currentRecipe 
+          });
+          
+          clearAddForm();
+        } else {
+          // 編輯現有商品
+          const item = currentRecipeItem;
+          await setDoc(doc(db, "menu", item.id), { 
+            ...item, 
+            recipe: currentRecipe 
+          });
+        }
+        
+        closeRecipeModal();
+        showMsg('配方儲存成功！');
+        loadMenu();
+      } catch (error) {
+        console.error('儲存配方失敗:', error);
+        alert('儲存配方失敗，請重試');
+      }
+    };
+
+    // 點擊外部關閉彈出視窗
+    window.onclick = function(event) {
+      const modal = document.getElementById('recipeModal');
+      if (event.target === modal) {
+        closeRecipeModal();
+      }
+    };
   </script>
 </body>
 </html> 

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>初始化 Orders 訂單</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f7f3ef; }
+    .container { max-width: 400px; margin: 40px auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #3bb4c122; text-align: center; }
+    button { padding: 14px 32px; font-size: 1.2em; background: #3bb4c1; color: #fff; border: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+    button:disabled { background: #b0dbe6; }
+    .msg { margin-top: 24px; font-size: 1.1em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>初始化 Orders 訂單</h2>
+    <p>按下按鈕，將自動建立幾筆範例訂單（含明細）到 <b>/orders</b> 集合。</p>
+    <button id="initBtn" onclick="initOrders()">建立範例訂單</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    // 你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const defaultOrders = [
+      {
+        tableNumber: "A1",
+        dineType: "內用",
+        items: [
+          { name: "珍珠奶茶", quantity: 2 },
+          { name: "紅茶拿鐵", quantity: 1 }
+        ],
+        status: "pending"
+      },
+      {
+        tableNumber: "023",
+        dineType: "外帶",
+        items: [
+          { name: "芒果冰沙", quantity: 1 }
+        ],
+        status: "pending"
+      },
+      {
+        tableNumber: "B7",
+        dineType: "內用",
+        items: [
+          { name: "抹茶牛奶", quantity: 1 },
+          { name: "芒果冰沙", quantity: 2 }
+        ],
+        status: "pending"
+      }
+    ];
+
+    // 產生今日日期+流水號的訂單ID
+    function getTodayOrderId() {
+      const d = new Date();
+      const dateStr = `${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}`;
+      const key = 'order_serial_' + dateStr;
+      let serial = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+      localStorage.setItem(key, serial);
+      return `${dateStr}-${serial.toString().padStart(3, '0')}`;
+    }
+
+    async function initOrders() {
+      const btn = document.getElementById('initBtn');
+      const msg = document.getElementById('msg');
+      btn.disabled = true;
+      msg.innerText = '建立中...';
+      try {
+        for (const order of defaultOrders) {
+          const orderId = getTodayOrderId();
+          await setDoc(doc(db, "orders", orderId), {
+            ...order,
+            timestamp: serverTimestamp()
+          });
+        }
+        msg.innerHTML = '<span style="color:green">✅ 範例訂單建立完成！（ID為日期+流水號）</span>';
+      } catch (e) {
+        msg.innerHTML = '<span style="color:red">❌ 建立失敗：' + e.message + '</span>';
+        btn.disabled = false;
+      }
+    }
+    window.initOrders = initOrders;
+  </script>
+</body>
+</html> 

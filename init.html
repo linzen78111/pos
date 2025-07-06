@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>資料庫初始化</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f8f8f8; }
+    .container { max-width: 400px; margin: 40px auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0001; text-align: center; }
+    button { padding: 14px 32px; font-size: 1.2em; background: #1976d2; color: #fff; border: none; border-radius: 8px; margin-top: 20px; }
+    button:disabled { background: #aaa; }
+    .msg { margin-top: 24px; font-size: 1.1em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Firestore 資料庫初始化</h2>
+    <p>按下按鈕，將自動建立 <b>/menu</b> 集合與預設餐點（ID 為餐點名稱，會覆蓋同名餐點）。</p>
+    <button id="initBtn" onclick="initMenu()">建立預設菜單</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    // 你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const defaultMenu = [
+      {
+        name: "珍珠奶茶",
+        price: 50,
+        enabled: true,
+        image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
+        note: "本品含奶製品，甜度固定",
+        category: "飲料"
+      },
+      {
+        name: "芒果冰沙",
+        price: 60,
+        enabled: true,
+        image: "https://images.unsplash.com/photo-1464306076886-debca5e8a6b0?auto=format&fit=crop&w=400&q=80",
+        note: "純素，含芒果",
+        category: "飲料"
+      },
+      {
+        name: "紅茶拿鐵",
+        price: 55,
+        enabled: true,
+        image: "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80",
+        note: "本品含乳製品",
+        category: "飲料"
+      },
+      {
+        name: "抹茶牛奶",
+        price: 65,
+        enabled: true,
+        image: "https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=400&q=80",
+        note: "抹茶含咖啡因",
+        category: "飲料"
+      },
+      {
+        name: "芒果奶酪",
+        price: 70,
+        enabled: true,
+        image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
+        note: "本品含乳製品",
+        category: "甜點"
+      }
+    ];
+
+    async function initMenu() {
+      const btn = document.getElementById('initBtn');
+      const msg = document.getElementById('msg');
+      btn.disabled = true;
+      msg.innerText = '建立中...';
+      try {
+        for (const item of defaultMenu) {
+          await setDoc(doc(db, "menu", item.name), item);
+        }
+        msg.innerHTML = '<span style="color:green">✅ 預設菜單建立完成！（同名會覆蓋）</span>';
+      } catch (e) {
+        msg.innerHTML = '<span style="color:red">❌ 建立失敗：' + e.message + '</span>';
+        btn.disabled = false;
+      }
+    }
+    window.initMenu = initMenu;
+  </script>
+</body>
+</html> 

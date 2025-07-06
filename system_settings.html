@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>系統設定 - G茶餐酒館</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    
+    /* 標題區域 */
+    .header { background: #2d2320; color: #e0b873; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 1.8em; }
+    .nav-buttons { display: flex; gap: 10px; }
+    .nav-btn { padding: 8px 16px; background: #e0b873; color: #2d2320; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; }
+    .nav-btn:hover { background: #d4a862; }
+    
+    /* 設定區塊 */
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+    .settings-section { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .settings-section h3 { margin: 0 0 20px 0; color: #2d2320; border-bottom: 2px solid #e0b873; padding-bottom: 10px; }
+    
+    /* 表單樣式 */
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #2d2320; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+    .form-group textarea { height: 80px; resize: vertical; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    
+    /* 按鈕樣式 */
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 2px; }
+    .btn-primary { background: #2196F3; color: white; }
+    .btn-success { background: #4CAF50; color: white; }
+    .btn-warning { background: #FF9800; color: white; }
+    .btn-danger { background: #f44336; color: white; }
+    .btn:hover { opacity: 0.8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* 警告訊息 */
+    .alert { padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+    .alert-info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    .alert-warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+    .alert-success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .alert-danger { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    
+    /* 統計卡片 */
+    .stats-card { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #e0b873; }
+    .stats-title { font-weight: bold; margin-bottom: 5px; }
+    .stats-value { font-size: 1.2em; color: #2d2320; }
+    
+    /* 營業時間設定 */
+    .hours-grid { display: grid; grid-template-columns: 100px 1fr 1fr 80px; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .hours-grid label { margin: 0; }
+    
+    /* 開關樣式 */
+    .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #4CAF50; }
+    input:checked + .slider:before { transform: translateX(26px); }
+    
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+      .settings-grid { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      .hours-grid { grid-template-columns: 1fr; gap: 5px; }
+      .header { flex-direction: column; gap: 15px; }
+      .nav-buttons { flex-wrap: wrap; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 登入區域 -->
+  <div class="container" id="authContainer" style="display:none;max-width:400px;margin:100px auto;">
+    <div class="settings-section">
+      <h2>系統設定登入</h2>
+      <div class="form-group">
+        <input type="email" id="authEmail" placeholder="Email" />
+      </div>
+      <div class="form-group">
+        <input type="password" id="authPassword" placeholder="密碼" />
+      </div>
+      <button id="authLoginBtn" class="btn btn-primary" style="width:100%;">登入</button>
+      <div id="authMsg" style="color:#f44336;margin-top:15px;text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="container" id="mainContainer" style="display:none;">
+    <div class="header">
+      <h1>⚙️ 系統設定</h1>
+      <div class="nav-buttons">
+        <a href="kitchen_orders.html" class="nav-btn">🍳 廚房看板</a>
+        <a href="daily_report.html" class="nav-btn">📋 日結帳</a>
+        <a href="inventory_management.html" class="nav-btn">📦 庫存管理</a>
+        <a href="analytics.html" class="nav-btn">📊 情報分析</a>
+        <button class="nav-btn" onclick="logout()">登出</button>
+      </div>
+    </div>
+
+    <!-- 系統狀態 -->
+    <div class="alert alert-info">
+      <strong>🔧 系統狀態：</strong>
+      <span id="systemStatus">正常運行</span> | 
+      <strong>版本：</strong>v1.0.0 | 
+      <strong>最後更新：</strong><span id="lastUpdate">-</span>
+    </div>
+
+    <div class="settings-grid">
+      <!-- 店家基本資訊 -->
+      <div class="settings-section">
+        <h3>🏪 店家基本資訊</h3>
+        <form id="storeInfoForm">
+          <div class="form-group">
+            <label>店家名稱：</label>
+            <input type="text" id="storeName" value="G茶餐酒館" />
+          </div>
+          <div class="form-group">
+            <label>店家地址：</label>
+            <textarea id="storeAddress" placeholder="請輸入店家地址"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>聯絡電話：</label>
+              <input type="tel" id="storePhone" placeholder="02-1234-5678" />
+            </div>
+            <div class="form-group">
+              <label>統一編號：</label>
+              <input type="text" id="storeTaxId" placeholder="12345678" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>店家描述：</label>
+            <textarea id="storeDescription" placeholder="店家簡介或特色描述"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">💾 儲存店家資訊</button>
+        </form>
+      </div>
+
+      <!-- 營業時間設定 -->
+      <div class="settings-section">
+        <h3>🕐 營業時間設定</h3>
+        <div id="businessHours">
+          <!-- 營業時間將在這裡動態生成 -->
+        </div>
+        <button class="btn btn-success" onclick="saveBusinessHours()">💾 儲存營業時間</button>
+      </div>
+
+      <!-- 系統參數設定 -->
+      <div class="settings-section">
+        <h3>⚙️ 系統參數</h3>
+        <div class="form-group">
+          <label>訂單自動刷新間隔（秒）：</label>
+          <input type="number" id="refreshInterval" min="5" max="60" value="10" />
+        </div>
+        <div class="form-group">
+          <label>取餐號碼範圍：</label>
+          <div class="form-row">
+            <input type="number" id="takeoutMin" min="1" max="999" value="1" placeholder="最小值" />
+            <input type="number" id="takeoutMax" min="1" max="999" value="999" placeholder="最大值" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>低庫存警告閾值（%）：</label>
+          <input type="number" id="lowStockThreshold" min="1" max="50" value="20" />
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableSound" checked />
+            啟用音效提醒
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableAutoDeduction" checked />
+            啟用自動庫存扣減
+          </label>
+        </div>
+        <button class="btn btn-primary" onclick="saveSystemParams()">💾 儲存系統參數</button>
+      </div>
+
+      <!-- 列印設定 -->
+      <div class="settings-section">
+        <h3>🖨️ 列印設定</h3>
+        <div class="form-group">
+          <label>出單機紙張寬度：</label>
+          <select id="printerWidth">
+            <option value="58">58mm</option>
+            <option value="80" selected>80mm</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>列印字體大小：</label>
+          <select id="printFontSize">
+            <option value="10">小 (10px)</option>
+            <option value="12">中 (12px)</option>
+            <option value="14" selected>大 (14px)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="autoPrint" />
+            新訂單自動列印
+          </label>
+        </div>
+        <div class="form-group">
+          <label>列印份數：</label>
+          <input type="number" id="printCopies" min="1" max="5" value="1" />
+        </div>
+        <button class="btn btn-primary" onclick="savePrintSettings()">💾 儲存列印設定</button>
+        <button class="btn btn-warning" onclick="testPrint()">🧪 測試列印</button>
+      </div>
+
+      <!-- 資料管理 -->
+      <div class="settings-section">
+        <h3>💾 資料管理</h3>
+        <div class="stats-card">
+          <div class="stats-title">資料庫統計</div>
+          <div class="stats-value" id="dbStats">載入中...</div>
+        </div>
+        
+        <div class="form-group">
+          <label>資料保留期間（天）：</label>
+          <input type="number" id="dataRetention" min="30" max="1095" value="365" />
+          <small style="color: #666;">超過期限的訂單資料將被自動清理</small>
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <h4>📤 資料備份</h4>
+          <p>定期備份您的重要資料</p>
+          <button class="btn btn-success" onclick="backupData()">立即備份</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+          <h4>📥 資料還原</h4>
+          <input type="file" id="restoreFile" accept=".json" style="margin-bottom: 10px;" />
+          <button class="btn btn-danger" onclick="restoreData()">還原資料</button>
+          <small style="color: #f44336; display: block; margin-top: 5px;">
+            ⚠️ 還原資料將覆蓋現有資料，請謹慎操作
+          </small>
+        </div>
+      </div>
+
+      <!-- 通知設定 -->
+      <div class="settings-section">
+        <h3>🔔 通知設定</h3>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableOrderNotify" checked />
+            新訂單通知
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableStockNotify" checked />
+            低庫存通知
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableDailyReport" checked />
+            每日報表通知
+          </label>
+        </div>
+        <div class="form-group">
+          <label>通知Email：</label>
+          <input type="email" id="notifyEmail" placeholder="admin@example.com" />
+        </div>
+        <div class="form-group">
+          <label>通知時間：</label>
+          <input type="time" id="notifyTime" value="22:00" />
+        </div>
+        <button class="btn btn-primary" onclick="saveNotificationSettings()">💾 儲存通知設定</button>
+        <button class="btn btn-success" onclick="testNotification()">🧪 測試通知</button>
+      </div>
+    </div>
+
+    <!-- 系統日誌 -->
+    <div class="settings-section" style="margin-top: 20px;">
+      <h3>📋 系統日誌</h3>
+      <div style="margin-bottom: 15px;">
+        <button class="btn btn-primary" onclick="loadSystemLogs()">重新整理</button>
+        <button class="btn btn-warning" onclick="clearLogs()">清除日誌</button>
+        <select id="logLevel" onchange="filterLogs()">
+          <option value="all">全部</option>
+          <option value="info">資訊</option>
+          <option value="warning">警告</option>
+          <option value="error">錯誤</option>
+        </select>
+      </div>
+      <div id="systemLogs" style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px;">
+        <div style="color: #666;">載入系統日誌中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, doc, getDoc, setDoc, getDocs, deleteDoc, query, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import globalSettings from './global_settings.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // 初始化設定
+    async function initializeSettings() {
+      // 初始化全局設定
+      await globalSettings.initialize(db);
+      
+      await loadStoreInfo();
+      await loadSystemParams();
+      await loadPrintSettings();
+      await loadNotificationSettings();
+      generateBusinessHours();
+      updateDatabaseStats();
+      loadSystemLogs();
+    }
+
+    // 載入店家資訊
+    async function loadStoreInfo() {
+      try {
+        const docRef = doc(db, "settings", "store_info");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          document.getElementById('storeName').value = data.name || '';
+          document.getElementById('storeAddress').value = data.address || '';
+          document.getElementById('storePhone').value = data.phone || '';
+          document.getElementById('storeTaxId').value = data.taxId || '';
+          document.getElementById('storeDescription').value = data.description || '';
+        }
+      } catch (error) {
+        console.error('載入店家資訊失敗:', error);
+      }
+    }
+
+    // 載入系統參數
+    async function loadSystemParams() {
+      try {
+        const docRef = doc(db, "settings", "system_params");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          document.getElementById('refreshInterval').value = data.refreshInterval || 10;
+          document.getElementById('takeoutMin').value = data.takeoutMin || 1;
+          document.getElementById('takeoutMax').value = data.takeoutMax || 999;
+          document.getElementById('lowStockThreshold').value = data.lowStockThreshold || 20;
+          document.getElementById('enableSound').checked = data.enableSound !== false;
+          document.getElementById('enableAutoDeduction').checked = data.enableAutoDeduction !== false;
+          document.getElementById('dataRetention').value = data.dataRetention || 365;
+        }
+      } catch (error) {
+        console.error('載入系統參數失敗:', error);
+      }
+    }
+
+    // 載入列印設定
+    async function loadPrintSettings() {
+      try {
+        const docRef = doc(db, "settings", "print_settings");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          document.getElementById('printerWidth').value = data.printerWidth || 80;
+          document.getElementById('printFontSize').value = data.printFontSize || 14;
+          document.getElementById('autoPrint').checked = data.autoPrint || false;
+          document.getElementById('printCopies').value = data.printCopies || 1;
+        }
+      } catch (error) {
+        console.error('載入列印設定失敗:', error);
+      }
+    }
+
+    // 載入通知設定
+    async function loadNotificationSettings() {
+      try {
+        const docRef = doc(db, "settings", "notification_settings");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          document.getElementById('enableOrderNotify').checked = data.enableOrderNotify !== false;
+          document.getElementById('enableStockNotify').checked = data.enableStockNotify !== false;
+          document.getElementById('enableDailyReport').checked = data.enableDailyReport !== false;
+          document.getElementById('notifyEmail').value = data.notifyEmail || '';
+          document.getElementById('notifyTime').value = data.notifyTime || '22:00';
+        }
+      } catch (error) {
+        console.error('載入通知設定失敗:', error);
+      }
+    }
+
+    // 生成營業時間設定
+    function generateBusinessHours() {
+      const container = document.getElementById('businessHours');
+      const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+      
+      let html = '<div class="hours-grid" style="font-weight: bold; margin-bottom: 15px;"><div>星期</div><div>開始時間</div><div>結束時間</div><div>營業</div></div>';
+      
+      weekDays.forEach((day, index) => {
+        html += '<div class="hours-grid">';
+        html += '<label>' + day + '</label>';
+        html += '<input type="time" id="open_' + index + '" value="10:00" />';
+        html += '<input type="time" id="close_' + index + '" value="22:00" />';
+        html += '<label class="switch">';
+        html += '<input type="checkbox" id="enable_' + index + '" checked />';
+        html += '<span class="slider"></span>';
+        html += '</label>';
+        html += '</div>';
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // 儲存店家資訊
+    document.getElementById('storeInfoForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      try {
+        const storeInfo = {
+          name: document.getElementById('storeName').value,
+          address: document.getElementById('storeAddress').value,
+          phone: document.getElementById('storePhone').value,
+          taxId: document.getElementById('storeTaxId').value,
+          description: document.getElementById('storeDescription').value,
+          updatedAt: Timestamp.now()
+        };
+        
+        await setDoc(doc(db, "settings", "store_info"), storeInfo);
+        
+        // 通知全局設定更新
+        if (window.globalSettings) {
+          window.globalSettings.updateSettings('store_info', storeInfo);
+        }
+        
+        showMessage('店家資訊已儲存', 'success');
+        logAction('更新店家資訊');
+      } catch (error) {
+        console.error('儲存店家資訊失敗:', error);
+        showMessage('儲存失敗，請重試', 'error');
+      }
+    });
+
+    // 儲存營業時間
+    async function saveBusinessHours() {
+      try {
+        const businessHours = {};
+        
+        for (let i = 0; i < 7; i++) {
+          businessHours[i] = {
+            open: document.getElementById('open_' + i).value,
+            close: document.getElementById('close_' + i).value,
+            enabled: document.getElementById('enable_' + i).checked
+          };
+        }
+        
+        await setDoc(doc(db, "settings", "business_hours"), {
+          hours: businessHours,
+          updatedAt: Timestamp.now()
+        });
+        
+        // 通知全局設定更新
+        if (window.globalSettings) {
+          window.globalSettings.updateSettings('business_hours', { hours: businessHours });
+        }
+        
+        showMessage('營業時間已儲存', 'success');
+        logAction('更新營業時間');
+      } catch (error) {
+        console.error('儲存營業時間失敗:', error);
+        showMessage('儲存失敗，請重試', 'error');
+      }
+    }
+
+    // 儲存系統參數
+    async function saveSystemParams() {
+      try {
+        const systemParams = {
+          refreshInterval: parseInt(document.getElementById('refreshInterval').value),
+          takeoutMin: parseInt(document.getElementById('takeoutMin').value),
+          takeoutMax: parseInt(document.getElementById('takeoutMax').value),
+          lowStockThreshold: parseInt(document.getElementById('lowStockThreshold').value),
+          enableSound: document.getElementById('enableSound').checked,
+          enableAutoDeduction: document.getElementById('enableAutoDeduction').checked,
+          dataRetention: parseInt(document.getElementById('dataRetention').value),
+          updatedAt: Timestamp.now()
+        };
+        
+        await setDoc(doc(db, "settings", "system_params"), systemParams);
+        
+        // 通知全局設定更新
+        if (window.globalSettings) {
+          window.globalSettings.updateSettings('system_params', systemParams);
+        }
+        
+        showMessage('系統參數已儲存', 'success');
+        logAction('更新系統參數');
+      } catch (error) {
+        console.error('儲存系統參數失敗:', error);
+        showMessage('儲存失敗，請重試', 'error');
+      }
+    }
+
+    // 儲存列印設定
+    async function savePrintSettings() {
+      try {
+        const printSettings = {
+          printerWidth: parseInt(document.getElementById('printerWidth').value),
+          printFontSize: parseInt(document.getElementById('printFontSize').value),
+          autoPrint: document.getElementById('autoPrint').checked,
+          printCopies: parseInt(document.getElementById('printCopies').value),
+          updatedAt: Timestamp.now()
+        };
+        
+        await setDoc(doc(db, "settings", "print_settings"), printSettings);
+        
+        // 通知全局設定更新
+        if (window.globalSettings) {
+          window.globalSettings.updateSettings('print_settings', printSettings);
+        }
+        
+        showMessage('列印設定已儲存', 'success');
+        logAction('更新列印設定');
+      } catch (error) {
+        console.error('儲存列印設定失敗:', error);
+        showMessage('儲存失敗，請重試', 'error');
+      }
+    }
+
+    // 儲存通知設定
+    async function saveNotificationSettings() {
+      try {
+        const notificationSettings = {
+          enableOrderNotify: document.getElementById('enableOrderNotify').checked,
+          enableStockNotify: document.getElementById('enableStockNotify').checked,
+          enableDailyReport: document.getElementById('enableDailyReport').checked,
+          notifyEmail: document.getElementById('notifyEmail').value,
+          notifyTime: document.getElementById('notifyTime').value,
+          updatedAt: Timestamp.now()
+        };
+        
+        await setDoc(doc(db, "settings", "notification_settings"), notificationSettings);
+        
+        // 通知全局設定更新
+        if (window.globalSettings) {
+          window.globalSettings.updateSettings('notification_settings', notificationSettings);
+        }
+        
+        showMessage('通知設定已儲存', 'success');
+        logAction('更新通知設定');
+      } catch (error) {
+        console.error('儲存通知設定失敗:', error);
+        showMessage('儲存失敗，請重試', 'error');
+      }
+    }
+
+    // 測試列印
+    function testPrint() {
+      const testContent = '================================\nG茶餐酒館 - 測試列印\n================================\n時間: ' + new Date().toLocaleString('zh-TW') + '\n\n這是一張測試出單\n用來確認列印設定是否正確\n\n如果您看到這張紙，\n表示列印功能正常運作！\n\n================================';
+      
+      const printWindow = window.open('', '_blank');
+             printWindow.document.write('<html><head><title>測試列印</title><style>body { font-family: monospace; font-size: ' + document.getElementById('printFontSize').value + 'px; margin: 0; padding: 5mm; } @media print { body { margin: 0; } }</style></head><body><pre>' + testContent + '</pre><script>window.print(); window.close();<\/script></body></html>');
+      
+      logAction('執行測試列印');
+    }
+
+    // 更新資料庫統計
+    async function updateDatabaseStats() {
+      try {
+        const collections = ['orders', 'menu', 'inventory', 'settings'];
+        let stats = '';
+        
+        for (const collectionName of collections) {
+          const snapshot = await getDocs(collection(db, collectionName));
+          stats += collectionName + ': ' + snapshot.size + ' 筆\n';
+        }
+        
+        document.getElementById('dbStats').textContent = stats;
+      } catch (error) {
+        console.error('更新資料庫統計失敗:', error);
+        document.getElementById('dbStats').textContent = '載入失敗';
+      }
+    }
+
+    // 備份資料
+    async function backupData() {
+      try {
+        showMessage('開始備份資料...', 'info');
+        
+        const collections = ['orders', 'menu', 'inventory', 'settings'];
+        const backupData = {};
+        
+        for (const collectionName of collections) {
+          const snapshot = await getDocs(collection(db, collectionName));
+          backupData[collectionName] = [];
+          
+          snapshot.forEach(doc => {
+            backupData[collectionName].push({
+              id: doc.id,
+              data: doc.data()
+            });
+          });
+        }
+        
+        backupData.timestamp = new Date().toISOString();
+        backupData.version = '1.0.0';
+        
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'backup_' + new Date().toISOString().split('T')[0] + '.json';
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        showMessage('備份完成', 'success');
+        logAction('執行資料備份');
+      } catch (error) {
+        console.error('備份失敗:', error);
+        showMessage('備份失敗，請重試', 'error');
+      }
+    }
+
+    // 還原資料
+    async function restoreData() {
+      const fileInput = document.getElementById('restoreFile');
+      if (!fileInput.files.length) {
+        showMessage('請選擇備份檔案', 'warning');
+        return;
+      }
+      
+      if (!confirm('還原資料將覆蓋現有資料，確定要繼續嗎？')) {
+        return;
+      }
+      
+      try {
+        const file = fileInput.files[0];
+        const text = await file.text();
+        const backupData = JSON.parse(text);
+        
+        showMessage('開始還原資料...', 'info');
+        
+        // 還原各個集合
+        for (const collectionName in backupData) {
+          if (collectionName === 'timestamp' || collectionName === 'version') continue;
+          
+          const documents = backupData[collectionName];
+          for (const docData of documents) {
+            await setDoc(doc(db, collectionName, docData.id), docData.data);
+          }
+        }
+        
+        showMessage('資料還原完成', 'success');
+        logAction('執行資料還原');
+        
+        // 重新載入設定
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+        
+      } catch (error) {
+        console.error('還原失敗:', error);
+        showMessage('還原失敗，請檢查檔案格式', 'error');
+      }
+    }
+
+    // 載入系統日誌
+    async function loadSystemLogs() {
+      try {
+        const q = query(
+          collection(db, "system_logs"),
+          orderBy("timestamp", "desc"),
+          limit(100)
+        );
+        
+        const snapshot = await getDocs(q);
+        const logs = [];
+        
+        snapshot.forEach(doc => {
+          logs.push(doc.data());
+        });
+        
+        renderLogs(logs);
+      } catch (error) {
+        console.error('載入系統日誌失敗:', error);
+        document.getElementById('systemLogs').innerHTML = '<div style="color: #f44336;">載入日誌失敗</div>';
+      }
+    }
+
+    // 渲染日誌
+    function renderLogs(logs) {
+      const container = document.getElementById('systemLogs');
+      const level = document.getElementById('logLevel').value;
+      
+      const filteredLogs = level === 'all' ? logs : logs.filter(log => log.level === level);
+      
+      if (filteredLogs.length === 0) {
+        container.innerHTML = '<div style="color: #666;">暫無日誌記錄</div>';
+        return;
+      }
+      
+      let html = '';
+      filteredLogs.forEach(log => {
+        const time = log.timestamp ? log.timestamp.toDate().toLocaleString('zh-TW') : '-';
+        const levelColors = {
+          info: '#2196F3',
+          warning: '#FF9800',
+          error: '#f44336'
+        };
+        const levelColor = levelColors[log.level] || '#666';
+        
+        html += '<div style="margin-bottom: 5px;">';
+        html += '<span style="color: #666;">[' + time + ']</span> ';
+        html += '<span style="color: ' + levelColor + '; font-weight: bold;">[' + (log.level || 'INFO').toUpperCase() + ']</span> ';
+        html += '<span>' + log.message + '</span>';
+        if (log.details) {
+          html += '<br><span style="color: #666; margin-left: 20px;">' + log.details + '</span>';
+        }
+        html += '</div>';
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // 記錄操作日誌
+    async function logAction(action, level = 'info', details = '') {
+      try {
+        await setDoc(doc(collection(db, "system_logs")), {
+          timestamp: Timestamp.now(),
+          level: level,
+          message: action,
+          details: details,
+          user: auth.currentUser?.email || 'anonymous'
+        });
+      } catch (error) {
+        console.error('記錄日誌失敗:', error);
+      }
+    }
+
+    // 顯示訊息
+    function showMessage(message, type = 'info') {
+      const alertDiv = document.createElement('div');
+      alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-weight: bold; max-width: 300px;';
+      
+      const colors = {
+        success: { bg: '#d4edda', border: '#c3e6cb', color: '#155724' },
+        error: { bg: '#f8d7da', border: '#f5c6cb', color: '#721c24' },
+        warning: { bg: '#fff3cd', border: '#ffeaa7', color: '#856404' },
+        info: { bg: '#d1ecf1', border: '#bee5eb', color: '#0c5460' }
+      };
+      
+      const color = colors[type] || colors.info;
+      alertDiv.style.backgroundColor = color.bg;
+      alertDiv.style.border = '1px solid ' + color.border;
+      alertDiv.style.color = color.color;
+      
+      alertDiv.innerHTML = '<div style="display: flex; justify-content: space-between; align-items: center;"><span>' + message + '</span><span style="cursor: pointer; margin-left: 10px; font-size: 18px;" onclick="this.parentElement.parentElement.remove()">×</span></div>';
+      
+      document.body.appendChild(alertDiv);
+      
+      // 3秒後自動消失
+      setTimeout(() => {
+        if (alertDiv.parentElement) {
+          alertDiv.remove();
+        }
+      }, 3000);
+    }
+
+    // 過濾日誌
+    function filterLogs() {
+      loadSystemLogs();
+    }
+
+    // 清除日誌
+    async function clearLogs() {
+      if (!confirm('確定要清除所有系統日誌嗎？')) {
+        return;
+      }
+      
+      try {
+        const snapshot = await getDocs(collection(db, "system_logs"));
+        const deletePromises = [];
+        
+        snapshot.forEach(doc => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        showMessage('日誌已清除', 'success');
+        loadSystemLogs();
+      } catch (error) {
+        console.error('清除日誌失敗:', error);
+        showMessage('清除失敗，請重試', 'error');
+      }
+    }
+
+    // 測試通知
+    function testNotification() {
+      showMessage('測試通知功能（此為模擬）', 'info');
+      logAction('執行測試通知');
+    }
+
+    // 全域函數
+    window.saveBusinessHours = saveBusinessHours;
+    window.saveSystemParams = saveSystemParams;
+    window.savePrintSettings = savePrintSettings;
+    window.saveNotificationSettings = saveNotificationSettings;
+    window.testPrint = testPrint;
+    window.backupData = backupData;
+    window.restoreData = restoreData;
+    window.loadSystemLogs = loadSystemLogs;
+    window.filterLogs = filterLogs;
+    window.clearLogs = clearLogs;
+    window.testNotification = testNotification;
+    window.logout = function() {
+      signOut(auth);
+    };
+
+    // Firebase Auth
+    const authContainer = document.getElementById('authContainer');
+    const mainContainer = document.getElementById('mainContainer');
+    const authMsg = document.getElementById('authMsg');
+
+    document.getElementById('authLoginBtn').onclick = async function() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      authMsg.innerText = '';
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        authMsg.innerText = '登入失敗：' + (e.message || '請檢查帳號密碼');
+      }
+    };
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        authContainer.style.display = 'none';
+        mainContainer.style.display = 'block';
+        initializeSettings();
+        
+        // 更新最後登入時間
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-TW');
+      } else {
+        mainContainer.style.display = 'none';
+        authContainer.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html> 

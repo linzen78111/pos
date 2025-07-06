@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>日結帳報表 - G茶餐酒館</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: #2d2320; color: #e0b873; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 1.8em; }
+    .date-selector { display: flex; gap: 10px; align-items: center; }
+    .date-selector input { padding: 8px; border: 1px solid #e0b873; border-radius: 6px; background: #3e2f28; color: #e0b873; }
+    .date-selector button { padding: 8px 16px; background: #e0b873; color: #2d2320; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+    .stat-card h3 { margin: 0 0 10px 0; color: #2d2320; font-size: 1.1em; }
+    .stat-value { font-size: 2em; font-weight: bold; color: #e0b873; margin: 10px 0; }
+    .stat-label { color: #666; font-size: 0.9em; }
+    
+    .section { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .section h2 { margin: 0 0 15px 0; color: #2d2320; border-bottom: 2px solid #e0b873; padding-bottom: 10px; }
+    
+    .order-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .order-table th, .order-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    .order-table th { background: #f8f8f8; font-weight: bold; color: #2d2320; }
+    .order-table tr:hover { background: #f9f9f9; }
+    
+    .summary-row { background: #e0b873; color: #2d2320; font-weight: bold; }
+    .summary-row td { border-bottom: none; }
+    
+    .loading { text-align: center; color: #666; padding: 20px; }
+    .no-data { text-align: center; color: #999; padding: 40px; }
+    
+    .print-btn { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; margin-top: 15px; }
+    .print-btn:hover { background: #45a049; }
+    
+    .logout-btn { background: #f44336; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+    .logout-btn:hover { background: #da190b; }
+    
+    .chart-container { height: 300px; margin: 20px 0; }
+    
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; gap: 15px; }
+      .date-selector { flex-direction: column; }
+      .order-table { font-size: 0.9em; }
+      .order-table th, .order-table td { padding: 8px 4px; }
+    }
+    
+    @media print {
+      body { background: white !important; margin: 0 !important; padding: 0 !important; }
+      .header, .print-btn, .logout-btn, .date-selector { display: none !important; }
+      .container { max-width: 80mm !important; width: 100% !important; margin: 0 auto !important; padding: 2mm !important; }
+      .section { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 2mm 0 !important; }
+      .section h2 { font-size: 14px !important; margin: 2mm 0 !important; text-align: center !important; border-bottom: 1px solid #000 !important; padding-bottom: 1mm !important; }
+      .stats-grid { display: block !important; }
+      .stat-card { background: none !important; box-shadow: none !important; padding: 1mm !important; margin: 1mm 0 !important; border: 1px solid #000 !important; }
+      .stat-card h3 { font-size: 10px !important; margin: 0 !important; }
+      .stat-value { font-size: 12px !important; margin: 1mm 0 !important; }
+      .stat-label { font-size: 8px !important; }
+      .order-table { font-size: 8px !important; width: 100% !important; }
+      .order-table th, .order-table td { padding: 0.5mm !important; border: 1px solid #000 !important; }
+      .order-table th { background: #f0f0f0 !important; font-weight: bold !important; }
+      .summary-row { background: #000 !important; color: white !important; }
+      .no-data { font-size: 8px !important; padding: 2mm !important; }
+      .loading { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="authContainer" style="display:none;max-width:400px;margin:100px auto;">
+    <div class="section">
+      <h2>管理員登入</h2>
+      <input type="email" id="authEmail" placeholder="Email" style="width:100%;font-size:1.1em;padding:10px;margin-bottom:15px;border:1px solid #ddd;border-radius:6px;" />
+      <input type="password" id="authPassword" placeholder="密碼" style="width:100%;font-size:1.1em;padding:10px;margin-bottom:20px;border:1px solid #ddd;border-radius:6px;" />
+      <button id="authLoginBtn" style="width:100%;padding:12px 0;font-size:1.1em;background:#e0b873;color:#2d2320;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">登入</button>
+      <div id="authMsg" style="color:#f44336;margin-top:15px;text-align:center;"></div>
+    </div>
+  </div>
+
+  <div class="container" id="mainContainer" style="display:none;">
+    <div class="header">
+      <h1>📊 日結帳報表</h1>
+      <div class="date-selector">
+        <a href="kitchen_orders.html" style="background:#3bb4c1;color:white;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:bold;margin-right:10px;">🍳 廚房看板</a>
+        <a href="inventory_management.html" style="background:#9C27B0;color:white;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:bold;margin-right:10px;">📦 庫存管理</a>
+        <a href="analytics.html" style="background:#2196F3;color:white;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:bold;margin-right:10px;">📊 情報分析</a>
+        <a href="system_settings.html" style="background:#795548;color:white;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:bold;margin-right:10px;">⚙️ 系統設定</a>
+        <input type="date" id="selectedDate" />
+        <button onclick="loadDailyReport()">查詢</button>
+        <button class="logout-btn" onclick="logout()">登出</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>📈 總營業額</h3>
+        <div class="stat-value" id="totalRevenue">$0</div>
+        <div class="stat-label">今日總收入</div>
+      </div>
+      <div class="stat-card">
+        <h3>🛒 訂單數量</h3>
+        <div class="stat-value" id="totalOrders">0</div>
+        <div class="stat-label">完成訂單</div>
+      </div>
+      <div class="stat-card">
+        <h3>🍽️ 內用營收</h3>
+        <div class="stat-value" id="dineInRevenue">$0</div>
+        <div class="stat-label" id="dineInCount">0 筆訂單</div>
+      </div>
+      <div class="stat-card">
+        <h3>🥡 外帶營收</h3>
+        <div class="stat-value" id="takeOutRevenue">$0</div>
+        <div class="stat-label" id="takeOutCount">0 筆訂單</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔥 熱銷商品排行</h2>
+      <div id="hotItemsChart">
+        <div class="loading">載入中...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📋 訂單明細</h2>
+      <button class="print-btn" onclick="printReport()">🖨️ 列印報表</button>
+      <button class="print-btn" onclick="printThermalReport()" style="background:#FF9800;margin-left:10px;">🧾 出單機列印</button>
+      <div id="orderDetails">
+        <div class="loading">載入中...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>💰 收入統計</h2>
+      <div id="revenueBreakdown">
+        <div class="loading">載入中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSKEpN_xclOhuWOQA7HiMSjsz0lNIHRb4",
+      authDomain: "gukediancan.firebaseapp.com",
+      projectId: "gukediancan",
+      storageBucket: "gukediancan.firebasestorage.app",
+      messagingSenderId: "864103354539",
+      appId: "1:864103354539:web:26aabd0cc698d7a032e7ee",
+      measurementId: "G-EZYMQQ5FGQ"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentDateOrders = [];
+
+    // 初始化日期為今天
+    function initializeDate() {
+      const today = new Date();
+      const dateStr = today.getFullYear() + '-' + 
+                     (today.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                     today.getDate().toString().padStart(2, '0');
+      document.getElementById('selectedDate').value = dateStr;
+    }
+
+    // 載入日結報表
+    async function loadDailyReport() {
+      const selectedDate = document.getElementById('selectedDate').value;
+      if (!selectedDate) {
+        alert('請選擇日期');
+        return;
+      }
+
+      try {
+        // 設定查詢日期範圍
+        const startDate = new Date(selectedDate + 'T00:00:00');
+        const endDate = new Date(selectedDate + 'T23:59:59');
+        
+        // 查詢當日訂單
+        const q = query(
+          collection(db, "orders"),
+          where("timestamp", ">=", startDate),
+          where("timestamp", "<=", endDate),
+          orderBy("timestamp", "desc")
+        );
+        
+        const snapshot = await getDocs(q);
+        currentDateOrders = [];
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          currentDateOrders.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate() || new Date()
+          });
+        });
+
+        // 更新統計資料
+        updateStatistics();
+        updateHotItems();
+        updateOrderDetails();
+        updateRevenueBreakdown();
+        
+      } catch (error) {
+        console.error('載入報表失敗:', error);
+        alert('載入報表失敗，請重試');
+      }
+    }
+
+    // 更新統計資料
+    function updateStatistics() {
+      let totalRevenue = 0;
+      let dineInRevenue = 0;
+      let takeOutRevenue = 0;
+      let dineInCount = 0;
+      let takeOutCount = 0;
+
+      currentDateOrders.forEach(order => {
+        const amount = order.totalAmount || 0;
+        totalRevenue += amount;
+        
+        if (order.dineType === '內用') {
+          dineInRevenue += amount;
+          dineInCount++;
+        } else if (order.dineType === '外帶') {
+          takeOutRevenue += amount;
+          takeOutCount++;
+        }
+      });
+
+      document.getElementById('totalRevenue').textContent = `$${totalRevenue}`;
+      document.getElementById('totalOrders').textContent = currentDateOrders.length;
+      document.getElementById('dineInRevenue').textContent = `$${dineInRevenue}`;
+      document.getElementById('dineInCount').textContent = `${dineInCount} 筆訂單`;
+      document.getElementById('takeOutRevenue').textContent = `$${takeOutRevenue}`;
+      document.getElementById('takeOutCount').textContent = `${takeOutCount} 筆訂單`;
+    }
+
+    // 更新熱銷商品
+    function updateHotItems() {
+      const itemCounts = {};
+      const itemRevenue = {};
+      
+      currentDateOrders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            const name = item.name;
+            itemCounts[name] = (itemCounts[name] || 0) + item.quantity;
+            itemRevenue[name] = (itemRevenue[name] || 0) + (item.subtotal || item.price * item.quantity);
+          });
+        }
+      });
+
+      const sortedItems = Object.entries(itemCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      let html = '<table class="order-table">';
+      html += '<tr><th>排名</th><th>商品名稱</th><th>銷售數量</th><th>營收金額</th></tr>';
+      
+      if (sortedItems.length === 0) {
+        html += '<tr><td colspan="4" class="no-data">今日暫無銷售資料</td></tr>';
+      } else {
+        sortedItems.forEach(([name, count], index) => {
+          html += `<tr>
+            <td>${index + 1}</td>
+            <td>${name}</td>
+            <td>${count}</td>
+            <td>$${itemRevenue[name] || 0}</td>
+          </tr>`;
+        });
+      }
+      
+      html += '</table>';
+      document.getElementById('hotItemsChart').innerHTML = html;
+    }
+
+    // 更新訂單明細
+    function updateOrderDetails() {
+      let html = '<table class="order-table">';
+      html += '<tr><th>時間</th><th>訂單編號</th><th>用餐方式</th><th>桌號/取餐號</th><th>金額</th></tr>';
+      
+      if (currentDateOrders.length === 0) {
+        html += '<tr><td colspan="5" class="no-data">今日暫無訂單</td></tr>';
+      } else {
+        currentDateOrders.forEach(order => {
+          const time = order.timestamp.toLocaleTimeString('zh-TW', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          const tableInfo = order.dineType === '外帶' ? 
+            (order.takeoutNumber || '001') : 
+            (order.tableNumber || '-');
+          
+          html += `<tr>
+            <td>${time}</td>
+            <td>${order.orderId || order.id}</td>
+            <td>${order.dineType || '-'}</td>
+            <td>${tableInfo}</td>
+            <td>$${order.totalAmount || 0}</td>
+          </tr>`;
+        });
+        
+        const totalAmount = currentDateOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        html += `<tr class="summary-row">
+          <td colspan="4">總計</td>
+          <td>$${totalAmount}</td>
+        </tr>`;
+      }
+      
+      html += '</table>';
+      document.getElementById('orderDetails').innerHTML = html;
+    }
+
+    // 更新收入統計
+    function updateRevenueBreakdown() {
+      const hourlyRevenue = {};
+      
+      currentDateOrders.forEach(order => {
+        const hour = order.timestamp.getHours();
+        const hourKey = `${hour}:00-${hour + 1}:00`;
+        hourlyRevenue[hourKey] = (hourlyRevenue[hourKey] || 0) + (order.totalAmount || 0);
+      });
+
+      let html = '<table class="order-table">';
+      html += '<tr><th>時段</th><th>營收金額</th><th>訂單數量</th></tr>';
+      
+      const sortedHours = Object.entries(hourlyRevenue).sort((a, b) => {
+        const hourA = parseInt(a[0].split(':')[0]);
+        const hourB = parseInt(b[0].split(':')[0]);
+        return hourA - hourB;
+      });
+
+      if (sortedHours.length === 0) {
+        html += '<tr><td colspan="3" class="no-data">今日暫無營收資料</td></tr>';
+      } else {
+        sortedHours.forEach(([timeRange, revenue]) => {
+          const hour = parseInt(timeRange.split(':')[0]);
+          const orderCount = currentDateOrders.filter(order => 
+            order.timestamp.getHours() === hour
+          ).length;
+          
+          html += `<tr>
+            <td>${timeRange}</td>
+            <td>$${revenue}</td>
+            <td>${orderCount}</td>
+          </tr>`;
+        });
+      }
+      
+      html += '</table>';
+      document.getElementById('revenueBreakdown').innerHTML = html;
+    }
+
+    // 列印報表
+    function printReport() {
+      window.print();
+    }
+
+    // 熱感應出單機列印
+    function printThermalReport() {
+      const selectedDate = document.getElementById('selectedDate').value;
+      const dateDisplay = new Date(selectedDate).toLocaleDateString('zh-TW');
+      
+      let totalRevenue = 0;
+      let dineInRevenue = 0;
+      let takeOutRevenue = 0;
+      let dineInCount = 0;
+      let takeOutCount = 0;
+
+      currentDateOrders.forEach(order => {
+        const amount = order.totalAmount || 0;
+        totalRevenue += amount;
+        if (order.dineType === '內用') {
+          dineInRevenue += amount;
+          dineInCount++;
+        } else if (order.dineType === '外帶') {
+          takeOutRevenue += amount;
+          takeOutCount++;
+        }
+      });
+
+      // 熱銷商品統計
+      const itemCounts = {};
+      currentDateOrders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+          });
+        }
+      });
+      const topItems = Object.entries(itemCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      // 生成80mm熱感應出單機格式（實際寬度約302px）
+      let thermalContent = '<div style="width:302px;margin:0 auto;padding:8px;font-family:monospace;font-size:11px;line-height:1.2;background:#fff;">';
+      thermalContent += '<div style="text-align:center;font-size:16px;font-weight:bold;margin-bottom:12px;">G茶餐酒館</div>';
+      thermalContent += '<div style="text-align:center;font-size:13px;margin-bottom:12px;">日結帳報表</div>';
+      thermalContent += '<div style="text-align:center;font-size:12px;margin-bottom:16px;">' + dateDisplay + '</div>';
+      thermalContent += '<div style="border-bottom:1px solid #000;padding-bottom:8px;margin-bottom:8px;">';
+      thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>總營業額:</span><span style="font-weight:bold;font-size:14px;">$' + totalRevenue + '</span></div>';
+      thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>訂單數量:</span><span>' + currentDateOrders.length + '筆</span></div>';
+      thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>內用營收:</span><span>$' + dineInRevenue + '(' + dineInCount + '筆)</span></div>';
+      thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>外帶營收:</span><span>$' + takeOutRevenue + '(' + takeOutCount + '筆)</span></div>';
+      thermalContent += '</div>';
+      
+      if (topItems.length > 0) {
+        thermalContent += '<div style="border-bottom:1px solid #000;padding-bottom:8px;margin-bottom:8px;">';
+        thermalContent += '<div style="text-align:center;font-weight:bold;margin-bottom:8px;">熱銷商品TOP5</div>';
+        topItems.forEach(([name, count], index) => {
+          thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>' + (index + 1) + '.' + name + '</span><span>' + count + '份</span></div>';
+        });
+        thermalContent += '</div>';
+      }
+      
+      thermalContent += '<div style="border-bottom:1px solid #000;padding-bottom:8px;margin-bottom:8px;">';
+      thermalContent += '<div style="text-align:center;font-weight:bold;margin-bottom:8px;">訂單明細</div>';
+      
+      if (currentDateOrders.length > 0) {
+        currentDateOrders.forEach(order => {
+          const time = order.timestamp.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+          const tableInfo = order.dineType === '外帶' ? '取餐:' + (order.takeoutNumber || '001') : '桌號:' + (order.tableNumber || '-');
+          thermalContent += '<div style="margin-bottom:4px;font-size:10px;">';
+          thermalContent += '<div style="display:flex;justify-content:space-between;"><span>' + time + ' ' + order.dineType + '</span><span style="font-weight:bold;">$' + (order.totalAmount || 0) + '</span></div>';
+          thermalContent += '<div style="color:#666;font-size:9px;">' + tableInfo + ' | ' + (order.orderId || order.id) + '</div>';
+          thermalContent += '</div>';
+        });
+      } else {
+        thermalContent += '<div style="text-align:center;color:#666;">今日暫無訂單</div>';
+      }
+      
+      thermalContent += '</div>';
+      thermalContent += '<div style="border-top:2px solid #000;padding-top:8px;margin-top:12px;text-align:center;">';
+      thermalContent += '<div style="font-size:18px;font-weight:bold;">總計: $' + totalRevenue + '</div>';
+      thermalContent += '</div>';
+      thermalContent += '<div style="text-align:center;margin-top:16px;font-size:9px;color:#666;">列印時間: ' + new Date().toLocaleString('zh-TW') + '</div>';
+      thermalContent += '</div>';
+
+            // 創建新視窗進行預覽和列印
+      const printWindow = window.open('', '_blank', 'width=500,height=800');
+      const printHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>日結帳報表預覽</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; }
+              @page { size: 80mm auto; margin: 0; }
+              .print-controls { display: none !important; }
+            }
+            body { 
+              font-family: monospace; 
+              margin: 0; 
+              padding: 10px; 
+              background: #f5f5f5;
+            }
+            .print-controls {
+              background: #2d2320;
+              color: #e0b873;
+              padding: 10px;
+              text-align: center;
+              margin-bottom: 10px;
+              border-radius: 8px;
+            }
+            .print-controls button {
+              background: #e0b873;
+              color: #2d2320;
+              border: none;
+              padding: 8px 16px;
+              margin: 0 5px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            }
+            .print-controls button:hover {
+              background: #d4a862;
+            }
+            .preview-container {
+              background: white;
+              border: 2px dashed #ccc;
+              margin: 0 auto;
+              max-width: 80mm;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-controls">
+            <h3>🧾 日結帳出單機預覽 (80mm)</h3>
+            <button onclick="window.print()">🖨️ 列印</button>
+            <button onclick="window.close()">❌ 關閉</button>
+          </div>
+          <div class="preview-container">
+            ${thermalContent}
+          </div>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+    }
+
+    // 登出
+    function logout() {
+      signOut(auth);
+    }
+
+    // 全域函數
+    window.loadDailyReport = loadDailyReport;
+    window.printReport = printReport;
+    window.printThermalReport = printThermalReport;
+    window.logout = logout;
+
+    // Firebase Auth
+    const authContainer = document.getElementById('authContainer');
+    const mainContainer = document.getElementById('mainContainer');
+    const authMsg = document.getElementById('authMsg');
+
+    document.getElementById('authLoginBtn').onclick = async function() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      authMsg.innerText = '';
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        authMsg.innerText = '登入失敗：' + (e.message || '請檢查帳號密碼');
+      }
+    };
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        authContainer.style.display = 'none';
+        mainContainer.style.display = 'block';
+        initializeDate();
+        loadDailyReport();
+      } else {
+        mainContainer.style.display = 'none';
+        authContainer.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html> 
