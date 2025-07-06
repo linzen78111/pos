@@ -15,6 +15,7 @@ class GlobalSettings {
       print_settings: {
         printerWidth: 80,
         printFontSize: 14,
+        printerEncoding: 'ascii',
         autoPrint: false,
         printCopies: 1
       },

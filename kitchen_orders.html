@@ -76,6 +76,9 @@
     您的瀏覽器不支援音頻播放。
   </audio>
   
+  <!-- 引入熱感應出單機工具類 -->
+  <script src="thermal_printer_utils.js"></script>
+  
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
     import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -447,81 +450,41 @@
         return;
       }
 
-      // 計算總金額
-      let total = 0;
-      order.items.forEach(item => {
-        const price = item.price || 0;
-        const subtotal = price * item.quantity;
-        total += subtotal;
-      });
-
       // 獲取列印設定
       const printSettings = globalSettings.getPrintSettings();
       const storeName = globalSettings.getStoreName();
       
-      // 生成熱感應出單機格式
-      const printerWidth = printSettings.printerWidth || 80;
-      const fontSize = printSettings.printFontSize || 11;
-      const actualWidth = printerWidth === 58 ? '218px' : '302px';
+      // 檢查是否有工具類
+      if (typeof ThermalPrinterUtils === 'undefined') {
+        console.error('ThermalPrinterUtils 未載入，使用預設格式');
+        // 回退到原有邏輯
+        printThermalOrderFallback(order, printSettings, storeName);
+        return;
+      }
+
+      // 使用新的工具類處理字符編碼
+      const printerEncoding = printSettings.printerEncoding || 'ascii';
       
-      let thermalContent = `<div style="width:${actualWidth};margin:0 auto;padding:8px;font-family:monospace;font-size:${fontSize}px;line-height:1.2;background:#fff;">`;
-      thermalContent += `<div style="text-align:center;font-size:${fontSize + 5}px;font-weight:bold;margin-bottom:12px;">${storeName}</div>`;
-        thermalContent += '<div style="text-align:center;font-size:13px;margin-bottom:12px;">訂單確認</div>';
-        thermalContent += '<div style="border-bottom:1px solid #000;margin-bottom:8px;"></div>';
-      
-              // 訂單基本資訊 - 使用表格式佈局
-        thermalContent += '<div style="margin-bottom:8px;">';
-        thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>用餐方式:</span><span>' + (order.dineType || '') + '</span></div>';
-        
-        if (order.dineType === '外帶') {
-          thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>取餐號碼:</span><span style="font-weight:bold;font-size:16px;">' + (order.takeoutNumber || '001') + '</span></div>';
-        } else {
-          thermalContent += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>桌號:</span><span style="font-weight:bold;font-size:16px;">' + (order.tableNumber || '') + '</span></div>';
-        }
-        
-        thermalContent += '<div style="font-size:9px;color:#666;">訂單編號: ' + (order.orderId || order.id) + '</div>';
-        thermalContent += '</div>';
-        thermalContent += '<div style="border-bottom:1px solid #000;margin-bottom:8px;"></div>';
-      
-              // 商品明細 - 表格式佈局
-        thermalContent += '<div style="margin-bottom:8px;">';
-        order.items.forEach(item => {
-          const price = item.price || 0;
-          const subtotal = price * item.quantity;
-          thermalContent += '<div style="margin-bottom:8px;">';
-          thermalContent += '<div style="font-weight:bold;margin-bottom:4px;">' + item.name + '</div>';
-          thermalContent += '<div style="display:flex;justify-content:space-between;font-size:10px;"><span>' + item.quantity + ' × $' + price + '</span><span>$' + subtotal + '</span></div>';
-          thermalContent += '</div>';
-        });
-        thermalContent += '</div>';
-        
-        thermalContent += '<div style="border-bottom:2px solid #000;margin-bottom:8px;"></div>';
-        
-        // 總計
-        thermalContent += '<div style="text-align:center;margin-bottom:12px;">';
-        thermalContent += '<div style="font-size:18px;font-weight:bold;">總計: $' + total + '</div>';
-        thermalContent += '</div>';
-        
-        // 時間資訊
-        const orderTime = order.timestamp ? order.timestamp.toDate() : new Date();
-        thermalContent += '<div style="border-top:1px solid #000;padding-top:8px;font-size:9px;text-align:center;color:#666;">';
-        thermalContent += '<div>下單時間: ' + orderTime.toLocaleString('zh-TW') + '</div>';
-        thermalContent += '<div>列印時間: ' + new Date().toLocaleString('zh-TW') + '</div>';
-        thermalContent += '</div>';
-      
-      thermalContent += '</div>';
+      // 生成編碼轉換後的HTML內容
+      const finalThermalContent = ThermalPrinterUtils.generateHTMLPreview(order, {
+        printerWidth: printSettings.printerWidth || 80,
+        fontSize: printSettings.printFontSize || 14,
+        storeName: storeName,
+        encoding: printerEncoding
+      });
 
       // 創建預覽視窗
+      const printerWidth = printSettings.printerWidth || 80;
       const printWindow = window.open('', '_blank', 'width=500,height=800');
       const printHTML = `
         <!DOCTYPE html>
         <html>
         <head>
-          <title>訂單列印預覽</title>
+          <title>訂單列印預覽 - ${printerEncoding.toUpperCase()}編碼</title>
           <style>
             @media print {
               body { margin: 0; padding: 0; }
-              @page { size: 80mm auto; margin: 0; }
+              @page { size: ${printerWidth}mm auto; margin: 0; }
               .print-controls { display: none !important; }
             }
             body { 
@@ -555,19 +518,30 @@
               background: white;
               border: 2px dashed #ccc;
               margin: 0 auto;
-              max-width: 80mm;
+              max-width: ${printerWidth}mm;
               box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .encoding-info {
+              background: #fff3cd;
+              border: 1px solid #ffeaa7;
+              padding: 8px;
+              margin-bottom: 10px;
+              border-radius: 6px;
+              font-size: 0.9em;
+              text-align: center;
+              color: #856404;
             }
           </style>
         </head>
         <body>
           <div class="print-controls">
-            <h3>🧾 訂單出單機預覽 (80mm)</h3>
+            <h3>🧾 訂單出單機預覽 (${printerWidth}mm)</h3>
+            <div class="encoding-info">字符編碼: ${printerEncoding.toUpperCase()}</div>
             <button onclick="window.print()">🖨️ 列印</button>
             <button onclick="window.close()">❌ 關閉</button>
           </div>
           <div class="preview-container">
-            ${thermalContent}
+            ${finalThermalContent}
           </div>
         </body>
         </html>
@@ -575,6 +549,13 @@
       printWindow.document.write(printHTML);
       printWindow.document.close();
     };
+
+    // 回退函數（當工具類未載入時使用）
+    function printThermalOrderFallback(order, printSettings, storeName) {
+      console.warn('使用回退列印模式');
+      // 這裡可以保留原有的列印邏輯作為備用
+      alert('列印功能暫時無法使用，請檢查系統設定');
+    }
   </script>
 </body>
 </html> 
