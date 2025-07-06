@@ -103,6 +103,7 @@
       <input type="text" id="addImage" placeholder="圖片網址" />
       <input type="text" id="addCategory" placeholder="分類" />
       <input type="text" id="addNote" placeholder="備註/說明" />
+      <input type="number" id="addOrderLimit" placeholder="每人限點數量(0=無限制)" min="0" />
       <label><input type="checkbox" id="addEnabled" checked /> 啟用</label>
       <button onclick="addMenuItem()">新增</button>
       <button onclick="openRecipeModal('add')" style="background:#9C27B0;color:#fff;margin-left:10px;">設定配方</button>
@@ -111,7 +112,7 @@
     <table id="menuTable">
       <thead>
         <tr>
-          <th>名稱</th><th>金額</th><th>圖片</th><th>分類</th><th>備註</th><th>啟用</th><th>配方</th><th>操作</th>
+          <th>名稱</th><th>金額</th><th>圖片</th><th>分類</th><th>備註</th><th>每人限點</th><th>啟用</th><th>配方</th><th>操作</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -225,8 +226,10 @@
     });
 
     let menuData = [];
+    
     async function loadMenu() {
       const snapshot = await getDocs(collection(db, "menu"));
+      
       menuData = [];
       snapshot.forEach(docu => {
         menuData.push({ ...docu.data(), id: docu.id });
@@ -246,6 +249,7 @@
             <td><input value="${item.image || ''}" id="editImage${idx}" style="max-width:160px;width:100%;" /></td>
             <td><input value="${item.category || ''}" id="editCategory${idx}" style="max-width:80px;width:100%;" /></td>
             <td><input value="${item.note || ''}" id="editNote${idx}" style="max-width:180px;width:100%;" /></td>
+            <td><input type="number" value="${item.orderLimit || 0}" id="editOrderLimit${idx}" min="0" style="max-width:80px;width:100%;" /></td>
             <td><input type="checkbox" id="editEnabled${idx}" ${item.enabled ? 'checked' : ''} /></td>
             <td>
               <button onclick="openRecipeModal('edit', ${idx})" style="background:#9C27B0;color:#fff;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:0.9em;">配方</button>
@@ -256,12 +260,15 @@
             </td>
           `;
         } else {
+          const orderLimit = item.orderLimit || 0;
+          
           tr.innerHTML = `
             <td>${item.name}</td>
             <td>$${item.price}</td>
             <td>${item.image ? `<img src="${item.image}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;">` : ''}</td>
             <td>${item.category || ''}</td>
             <td>${item.note || ''}</td>
+            <td style="text-align:center;">${orderLimit === 0 ? '無限制' : `${orderLimit} 份`}</td>
             <td><input type="checkbox" disabled ${item.enabled ? 'checked' : ''} /></td>
             <td>
               <button onclick="openRecipeModal('edit', ${idx})" style="background:#9C27B0;color:#fff;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:0.9em;">
@@ -284,9 +291,10 @@
       const image = document.getElementById('addImage').value.trim();
       const category = document.getElementById('addCategory').value.trim();
       const note = document.getElementById('addNote').value.trim();
+      const orderLimit = parseInt(document.getElementById('addOrderLimit').value || '0', 10);
       const enabled = document.getElementById('addEnabled').checked;
       if (!name) { showMsg('請輸入名稱'); return; }
-      await setDoc(doc(db, "menu", name), { name, price, image, category, note, enabled });
+      await setDoc(doc(db, "menu", name), { name, price, image, category, note, orderLimit, enabled });
       showMsg('新增成功！');
       clearAddForm();
       loadMenu();
@@ -297,6 +305,7 @@
       document.getElementById('addImage').value = '';
       document.getElementById('addCategory').value = '';
       document.getElementById('addNote').value = '';
+      document.getElementById('addOrderLimit').value = '0';
       document.getElementById('addEnabled').checked = true;
     }
     window.editMenuItem = function(idx) {
@@ -314,9 +323,10 @@
       const image = document.getElementById('editImage'+idx).value.trim();
       const category = document.getElementById('editCategory'+idx).value.trim();
       const note = document.getElementById('editNote'+idx).value.trim();
+      const orderLimit = parseInt(document.getElementById('editOrderLimit'+idx).value || '0', 10);
       const enabled = document.getElementById('editEnabled'+idx).checked;
       if (!name) { showMsg('請輸入名稱'); return; }
-      await setDoc(doc(db, "menu", name), { name, price, image, category, note, enabled });
+      await setDoc(doc(db, "menu", name), { name, price, image, category, note, orderLimit, enabled });
       menuData[idx]._edit = false;
       showMsg('儲存成功！');
       loadMenu();
@@ -546,10 +556,11 @@
           const image = document.getElementById('addImage').value.trim();
           const category = document.getElementById('addCategory').value.trim();
           const note = document.getElementById('addNote').value.trim();
+          const orderLimit = parseInt(document.getElementById('addOrderLimit').value || '0', 10);
           const enabled = document.getElementById('addEnabled').checked;
           
           await setDoc(doc(db, "menu", name), { 
-            name, price, image, category, note, enabled, 
+            name, price, image, category, note, orderLimit, enabled, 
             recipe: currentRecipe 
           });
           

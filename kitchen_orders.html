@@ -20,12 +20,39 @@
     .order-items td { color: #3e2f28; font-size: 1em; }
     .order-status { position: absolute; top: 16px; right: 16px; color: #fff; background: #7be0ad; border-radius: 6px; padding: 2px 10px; font-size: 0.98em; }
     .order-status.done { background: #b0dbe6; }
-    .print-btn { background: #3bb4c1; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .print-btn { background: #3bb4c1; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+    .print-btn:hover { opacity: 0.9; }
     .print-btn:active { background: #b85c38; }
+    .delete-btn { background: #f44336; }
+    .delete-btn:hover { background: #d32f2f; }
+    
+    /* Modal 樣式 */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
+    .modal-content { background-color: #3e2f28; margin: 5% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; color: #f5e9da; border: 2px solid #e0b873; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 15px 20px; border-bottom: 1px solid #e0b87333; }
+    .modal-title { font-size: 1.3em; font-weight: bold; color: #e0b873; }
+    .modal-body { padding: 20px; }
+    .close { color: #e0b873; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; transition: color 0.2s; }
+    .close:hover { color: #fff; }
+    .modal-buttons { display: flex; gap: 12px; padding: 15px 20px 20px 20px; justify-content: flex-end; }
+    .modal-btn { padding: 12px 24px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+    .btn-cancel { background: #666; color: #fff; }
+    .btn-cancel:hover { background: #555; }
+    .btn-danger { background: #f44336; color: #fff; }
+    .btn-danger:hover { background: #d32f2f; }
     @media (max-width: 700px) { 
       .container { max-width: 99vw; } 
       .container > div:first-child { flex-direction: column; gap: 10px; }
       .container > div:first-child > div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+      
+      /* 手機版 Modal 樣式 */
+      .modal-content { width: 95% !important; margin: 10% auto !important; max-height: 80vh !important; }
+      .modal-header { padding: 15px 15px 12px 15px !important; }
+      .modal-title { font-size: 1.1em !important; }
+      .modal-body { padding: 15px !important; }
+      .modal-buttons { padding: 12px 15px 15px 15px !important; flex-direction: column !important; gap: 8px !important; }
+      .modal-btn { width: 100% !important; padding: 14px !important; }
+      .close { font-size: 24px !important; }
     }
     /* 列印樣式 */
     @media print {
@@ -66,9 +93,37 @@
       </div>
     </div>
     <div id="ordersList">載入中...</div>
-    <div style="color:#888;font-size:0.98em;margin-top:18px;">* 點擊「列印」可直接用手機/平板連接的出單機列印訂單</div>
+    <div style="color:#888;font-size:0.98em;margin-top:18px;">
+      * 點擊「列印」可直接用手機/平板連接的出單機列印訂單<br>
+      * 點擊「🗑️ 刪除」可移除已完成或取消的訂單
+    </div>
   </div>
   <div id="printArea" style="display:none"></div>
+  
+  <!-- 刪除確認 Modal -->
+  <div id="deleteModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:450px;">
+      <div class="modal-header">
+        <div class="modal-title">🗑️ 確認刪除訂單</div>
+        <span class="close" onclick="closeDeleteModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div style="background:#fff3cd;border:1px solid #ffeaa7;padding:12px;border-radius:8px;margin-bottom:16px;">
+          <div style="color:#856404;font-weight:bold;text-align:center;">⚠️ 警告：此操作無法復原！</div>
+        </div>
+        <div id="deleteOrderInfo" style="background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:16px;color:#333;">
+          <!-- 訂單資訊將在這裡動態填入 -->
+        </div>
+        <div style="color:#666;font-size:0.9em;text-align:center;">
+          確定要刪除此訂單嗎？刪除後將無法恢復。
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button class="modal-btn btn-cancel" onclick="closeDeleteModal()">取消</button>
+        <button class="modal-btn btn-danger" id="confirmDeleteBtn" onclick="confirmDeleteOrder()">🗑️ 確認刪除</button>
+      </div>
+    </div>
+  </div>
   
   <!-- 音頻元素 -->
   <audio id="notificationSound" preload="auto" loop>
@@ -81,7 +136,7 @@
   
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
     import globalSettings from './global_settings.js';
 
@@ -128,8 +183,11 @@
             </table>
           </div>
           <div style="text-align:right;color:#b85c38;font-weight:bold;font-size:1.1em;">總金額：$${total}</div>
-          <button class="print-btn" onclick="printOrder('${order.id}')">列印</button>
-          <button class="print-btn" onclick="printThermalOrder('${order.id}')" style="background:#FF9800;margin-left:8px;">🧾 出單機</button>
+          <div style="margin-top:10px;">
+            <button class="print-btn" onclick="printOrder('${order.id}')">列印</button>
+            <button class="print-btn" onclick="printThermalOrder('${order.id}')" style="background:#FF9800;margin-left:8px;">🧾 出單機</button>
+            <button class="print-btn delete-btn" onclick="deleteOrder('${order.id}')" style="margin-left:8px;">🗑️ 刪除</button>
+          </div>
         `;
         list.appendChild(card);
       });
@@ -382,6 +440,149 @@
     // 跳轉到系統設定頁面
     function goToSettings() {
       window.open('system_settings.html', '_blank');
+    }
+
+    // 要刪除的訂單 ID
+    let orderToDelete = null;
+
+    // 刪除訂單功能 - 顯示確認 modal
+    window.deleteOrder = function(orderId) {
+      // 停止音頻播放
+      stopNotificationSound();
+      
+      const order = ordersData.find(o => o.id === orderId);
+      if (!order) {
+        alert('找不到訂單資料');
+        return;
+      }
+
+      // 儲存要刪除的訂單 ID
+      orderToDelete = orderId;
+      
+      // 準備訂單資訊
+      const orderInfo = order.dineType === '外帶' ? 
+        `取餐號碼: ${order.takeoutNumber || '001'}` : 
+        `桌號: ${order.tableNumber}`;
+      
+      // 計算總金額
+      let totalAmount = 0;
+      order.items?.forEach(item => {
+        totalAmount += (item.price || 0) * item.quantity;
+      });
+
+      // 填入訂單資訊到 modal
+      const deleteOrderInfo = document.getElementById('deleteOrderInfo');
+      deleteOrderInfo.innerHTML = `
+        <div style="margin-bottom:12px;">
+          <strong style="color:#b85c38;font-size:1.1em;">${orderInfo}</strong>
+        </div>
+        <div style="margin-bottom:8px;">
+          <span style="color:#666;">訂單編號：</span>
+          <span style="color:#333;">${order.orderId || order.id}</span>
+        </div>
+        <div style="margin-bottom:12px;">
+          <span style="color:#666;">總金額：</span>
+          <span style="color:#b85c38;font-weight:bold;font-size:1.1em;">$${totalAmount}</span>
+        </div>
+        <div style="margin-bottom:8px;color:#666;font-size:0.9em;">餐點明細：</div>
+        <div style="max-height:120px;overflow-y:auto;">
+          ${order.items?.map(item => 
+            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ddd;">
+              <span style="color:#333;">${item.name}</span>
+              <span style="color:#b85c38;">${item.quantity} × $${item.price || 0}</span>
+            </div>`
+          ).join('') || '<div style="color:#999;">無餐點資料</div>'}
+        </div>
+      `;
+      
+      // 重置確認按鈕狀態
+      const confirmBtn = document.getElementById('confirmDeleteBtn');
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '🗑️ 確認刪除';
+      
+      // 顯示 modal
+      document.getElementById('deleteModal').style.display = 'block';
+    };
+
+    // 關閉刪除確認 modal
+    window.closeDeleteModal = function() {
+      document.getElementById('deleteModal').style.display = 'none';
+      orderToDelete = null;
+    };
+
+    // 點擊 modal 背景關閉
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeDeleteModal();
+      }
+    });
+
+    // ESC 鍵關閉 modal
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.getElementById('deleteModal').style.display === 'block') {
+        closeDeleteModal();
+      }
+    });
+
+    // 確認刪除訂單
+    window.confirmDeleteOrder = async function() {
+      if (!orderToDelete) return;
+      
+      const confirmBtn = document.getElementById('confirmDeleteBtn');
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '刪除中...';
+      
+      try {
+        const order = ordersData.find(o => o.id === orderToDelete);
+        const orderInfo = order.dineType === '外帶' ? 
+          `取餐號碼: ${order.takeoutNumber || '001'}` : 
+          `桌號: ${order.tableNumber}`;
+        
+        // 從 Firebase 刪除訂單
+        await deleteDoc(doc(db, "orders", orderToDelete));
+        
+        // 關閉 modal
+        closeDeleteModal();
+        
+        // 顯示成功訊息
+        showDeleteSuccessMessage(orderInfo);
+        
+        console.log('訂單已刪除:', orderToDelete);
+      } catch (error) {
+        console.error('刪除訂單失敗:', error);
+        alert('刪除訂單失敗，請重試');
+        
+        // 重置按鈕
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '🗑️ 確認刪除';
+      }
+    };
+
+    // 顯示刪除成功訊息
+    function showDeleteSuccessMessage(orderInfo) {
+      const message = document.createElement('div');
+      message.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        z-index: 9999;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        font-size: 1em;
+      `;
+      message.innerHTML = `✅ 訂單已刪除<br><small>${orderInfo}</small>`;
+      document.body.appendChild(message);
+      
+      // 3秒後自動消失
+      setTimeout(() => {
+        if (message.parentElement) {
+          message.remove();
+        }
+      }, 3000);
     }
 
     // 全域函數

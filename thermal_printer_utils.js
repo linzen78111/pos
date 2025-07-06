@@ -113,7 +113,7 @@ class ThermalPrinterUtils {
     content += this.centerText(`${safeTotal}: $${total}`, printerWidth) + '\n';
     content += this.generateSeparator(printerWidth) + '\n';
 
-    // 時間資訊（使用數字格式）
+    // 時間資訊（使用數字格式，黑色字體）
     const orderTime = order.timestamp ? order.timestamp.toDate() : new Date();
     content += `Order: ${orderTime.toLocaleString('en-US')}\n`;
     content += `Print: ${new Date().toLocaleString('en-US')}\n`;
@@ -171,7 +171,7 @@ class ThermalPrinterUtils {
       content += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>桌號:</span><span style="font-weight:bold;font-size:16px;">${order.tableNumber || ''}</span></div>`;
     }
     
-    content += `<div style="font-size:9px;color:#666;">訂單編號: ${order.orderId || order.id}</div>`;
+    content += `<div style="font-size:11px;color:#000;font-weight:bold;margin-top:4px;">訂單編號: ${order.orderId || order.id}</div>`;
     content += '</div>';
     content += '<div style="border-bottom:1px solid #000;margin-bottom:8px;"></div>';
 
@@ -183,7 +183,7 @@ class ThermalPrinterUtils {
         const subtotal = price * item.quantity;
         content += '<div style="margin-bottom:8px;">';
         content += `<div style="font-weight:bold;margin-bottom:4px;">${item.name}</div>`;
-        content += `<div style="display:flex;justify-content:space-between;font-size:10px;"><span>${item.quantity} × $${price}</span><span>$${subtotal}</span></div>`;
+        content += `<div style="display:flex;justify-content:space-between;font-size:11px;color:#000;"><span>${item.quantity} × $${price}</span><span>$${subtotal}</span></div>`;
         content += '</div>';
       });
     }
@@ -196,7 +196,7 @@ class ThermalPrinterUtils {
     
     // 時間資訊
     const orderTime = order.timestamp ? order.timestamp.toDate() : new Date();
-    content += '<div style="border-top:1px solid #000;padding-top:8px;font-size:9px;text-align:center;color:#666;">';
+    content += '<div style="border-top:1px solid #000;padding-top:8px;font-size:11px;text-align:center;color:#000;font-weight:bold;">';
     content += `<div>下單時間: ${orderTime.toLocaleString('zh-TW')}</div>`;
     content += `<div>列印時間: ${new Date().toLocaleString('zh-TW')}</div>`;
     content += '</div>';
