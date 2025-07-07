@@ -83,6 +83,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h2>廚房接單看板</h2>
       <div>
+        <button id="menuBtn" style="background:#E91E63;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToMenu()">菜單管理</button>
         <button id="inventoryBtn" style="background:#9C27B0;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToInventory()">庫存業務</button>
         <button id="dailyReportBtn" style="background:#FF9800;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToDailyReport()">會計業務</button>
         <button id="analyticsBtn" style="background:#2196F3;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.9em;font-weight:bold;border:none;margin-right:8px;" onclick="goToAnalytics()">情報分析</button>
@@ -300,7 +301,7 @@
     }
     
     // 停止提醒音效
-    function stopNotificationSound() {
+    window.stopNotificationSound = function() {
       if (notificationAudio) {
         notificationAudio.pause();
         notificationAudio.currentTime = 0;
@@ -401,7 +402,7 @@
     }
 
     // 測試音效功能
-    function testSound() {
+    window.testSound = function() {
       if (!notificationAudio) {
         notificationAudio = document.getElementById('notificationSound');
       }
@@ -422,23 +423,28 @@
       }
     }
     
+    // 跳轉到菜單管理頁面
+    window.goToMenu = function() {
+      window.open('menu_admin.html', '_blank');
+    }
+
     // 跳轉到庫存管理頁面
-    function goToInventory() {
+    window.goToInventory = function() {
       window.open('inventory_management.html', '_blank');
     }
 
     // 跳轉到日結帳頁面
-    function goToDailyReport() {
+    window.goToDailyReport = function() {
       window.open('daily_report.html', '_blank');
     }
 
     // 跳轉到情報分析頁面
-    function goToAnalytics() {
+    window.goToAnalytics = function() {
       window.open('analytics.html', '_blank');
     }
 
     // 跳轉到系統設定頁面
-    function goToSettings() {
+    window.goToSettings = function() {
       window.open('system_settings.html', '_blank');
     }
 
